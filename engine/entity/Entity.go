@@ -232,7 +232,7 @@ func (e *Entity) OnLeaveAOI(otherAoi *aoi.AOI) {
 	e.uninterest(otherAoi.Data.(*Entity))
 }
 
-// Interests and Uninterest among entities
+// Interests and Uninterest among Entities
 func (e *Entity) interest(other *Entity) {
 	e.InterestedIn.Add(other)
 	other.InterestedBy.Add(e)
@@ -250,7 +250,7 @@ func (e *Entity) IsInterestedIn(other *Entity) bool {
 	return e.InterestedIn.Contains(other)
 }
 
-// DistanceTo calculates the distance between two entities
+// DistanceTo calculates the distance between two Entities
 func (e *Entity) DistanceTo(other *Entity) Coord {
 	return e.Position.DistanceTo(other.Position)
 }
@@ -422,7 +422,7 @@ func (e *Entity) Post(cb func()) {
 	post.Post(cb)
 }
 
-// Call other entities
+// Call other Entities
 func (e *Entity) Call(id common.EntityID, method string, args ...interface{}) {
 	Call(id, method, args)
 }
@@ -991,7 +991,7 @@ func (e *Entity) enterLocalSpace(space *Space, pos Vector3) {
 			return
 		}
 
-		//gwlog.Infof("%s.enterLocalSpace ==> %s", e, space)
+		gwlog.Infof("%s.enterLocalSpace ==> %s", e, space)
 		e.Space.leave(e)
 		space.enter(e, pos, false)
 	})
@@ -1146,7 +1146,7 @@ func (e *Entity) SetClientFilterProp(key string, val string) {
 // supported op includes "=", "!=", "<", "<=", ">", ">="
 // if key = "", all clients are called despite the value of op and val
 //
-// The message is broadcast to filtered clientproxies directly without going through entities, and therefore more efficient
+// The message is broadcast to filtered clientproxies directly without going through Entities, and therefore more efficient
 func (e *Entity) CallFilteredClients(key, op, val string, method string, args ...interface{}) {
 	// parse op from string to FilterClientsOpType
 	var realop proto.FilterClientsOpType
@@ -1171,7 +1171,7 @@ func (e *Entity) CallFilteredClients(key, op, val string, method string, args ..
 
 // IsUseAOI returns if entity type is using aoi
 //
-// Entities like Account, Service entities should not be using aoi
+// Entities like Account, Service Entities should not be using aoi
 func (e *Entity) IsUseAOI() bool {
 	return e.typeDesc.useAOI
 }

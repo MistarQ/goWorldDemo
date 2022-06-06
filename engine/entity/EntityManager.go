@@ -26,8 +26,8 @@ type EntityTypeDesc struct {
 	IsPersistent    bool
 	useAOI          bool
 	aoiDistance     Coord
-	entityType      reflect.Type
 	rpcDescs        rpcDescMap
+	entityType      reflect.Type
 	allClientAttrs  common.StringSet
 	clientAttrs     common.StringSet
 	persistentAttrs common.StringSet
@@ -467,7 +467,7 @@ func GetEntitiesByType(etype string) EntityMap {
 	return entityManager.entitiesByType[etype]
 }
 
-// TraverseEntityByType traverses entities of the specified type
+// TraverseEntityByType traverses Entities of the specified type
 func TraverseEntityByType(etype string, cb func(e *Entity)) {
 	entityManager.traverseByType(etype, cb)
 }
@@ -502,7 +502,7 @@ func OnGateDisconnected(gateid uint16) {
 	entityManager.onGateDisconnected(gateid)
 }
 
-// SaveAllEntities saves all entities
+// SaveAllEntities saves all Entities
 func SaveAllEntities() {
 	for _, e := range entityManager.entities {
 		e.Save()
@@ -562,7 +562,7 @@ func RestoreFreezedEntities(freeze *FreezeData) (err error) {
 
 	}()
 
-	clients := map[common.EntityID]*GameClient{} // save all the clients when restoring entities
+	clients := map[common.EntityID]*GameClient{} // save all the clients when restoring Entities
 	restoreEntities := func(filter func(typeName string, spaceKind int64) bool) {
 		for eid, info := range freeze.Entities {
 			typeName := info.Type
@@ -603,7 +603,7 @@ func RestoreFreezedEntities(freeze *FreezeData) (err error) {
 		return typeName != _SPACE_ENTITY_TYPE
 	})
 
-	// restore clients to all entities
+	// restore clients to all Entities
 	for eid, client := range clients {
 		e := entityManager.get(eid)
 		if e != nil {
@@ -616,7 +616,7 @@ func RestoreFreezedEntities(freeze *FreezeData) (err error) {
 	return nil
 }
 
-// Entities gets all entities
+// Entities gets all Entities
 //
 // Never modify the return value !
 func Entities() EntityMap {

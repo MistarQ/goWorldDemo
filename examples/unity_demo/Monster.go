@@ -1,10 +1,12 @@
 package main
 
 import (
-	"time"
-
+	"github.com/xiaonanln/goworld"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
+	"time"
+	"unsafe"
 )
 
 // Monster type
@@ -16,6 +18,17 @@ type Monster struct {
 
 	attackCD       time.Duration
 	lastAttackTime time.Time
+
+	CastCD       time.Duration
+	CastRadius   float64
+	lastCastTime time.Time
+
+	skillChan chan *castSkill
+}
+
+type castSkill struct {
+	name     string
+	Position goworld.Vector3
 }
 
 func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -25,6 +38,13 @@ func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
 	desc.DefineAttr("hp", "AllClients")
 	desc.DefineAttr("hpmax", "AllClients")
 	desc.DefineAttr("action", "AllClients")
+	desc.DefineAttr("radius", "AllClients")
+}
+
+func (monster *Monster) OnCreated() {
+	monster.Attrs.SetDefaultInt("radius", 5)
+	monster.skillChan = make(chan *castSkill, 5)
+	gwlog.Infof("monster created", monster)
 }
 
 func (monster *Monster) OnEnterSpace() {
@@ -32,6 +52,7 @@ func (monster *Monster) OnEnterSpace() {
 	monster.AddTimer(time.Millisecond*100, "AI")
 	monster.lastTickTime = time.Now()
 	monster.AddTimer(time.Millisecond*30, "Tick")
+	go monster.skillCalc()
 }
 
 func (monster *Monster) setDefaultAttrs() {
@@ -42,6 +63,10 @@ func (monster *Monster) setDefaultAttrs() {
 	monster.Attrs.SetDefaultStr("action", "idle")
 
 	monster.attackCD = time.Second
+	monster.lastAttackTime = time.Now()
+
+	monster.CastCD = 10 * time.Second
+	monster.CastRadius = 3
 	monster.lastAttackTime = time.Now()
 }
 
@@ -76,14 +101,22 @@ func (monster *Monster) AI() {
 }
 
 func (monster *Monster) Tick() {
+
+	now := time.Now()
+
+	if !now.Before(monster.lastCastTime.Add(monster.CastCD)) {
+		monster.cast(monster.Position)
+		monster.lastCastTime = now
+		return
+	}
+
 	if monster.attackingTarget != nil && monster.IsInterestedIn(monster.attackingTarget) {
-		now := time.Now()
 		if !now.Before(monster.lastAttackTime.Add(monster.attackCD)) {
 			monster.FaceTo(monster.attackingTarget)
 			monster.attack(monster.attackingTarget.I.(*Player))
 			monster.lastAttackTime = now
 		}
-		return
+
 	}
 
 	if monster.movingToTarget != nil && monster.IsInterestedIn(monster.movingToTarget) {
@@ -138,6 +171,14 @@ func (monster *Monster) Attacking(player *entity.Entity) {
 	monster.Attrs.SetStr("action", "move")
 }
 
+func (monster *Monster) cast(position goworld.Vector3) {
+	monster.CallAllClients("DisplayCast", monster.ID)
+	c := &castSkill{
+		name:     "cast",
+		Position: position}
+	monster.skillChan <- c
+}
+
 func (monster *Monster) attack(player *Player) {
 	monster.CallAllClients("DisplayAttack", player.ID)
 
@@ -149,7 +190,7 @@ func (monster *Monster) attack(player *Player) {
 }
 
 func (monster *Monster) GetDamage() int64 {
-	return 10
+	return 0
 }
 
 func (monster *Monster) TakeDamage(damage int64) {
@@ -164,5 +205,38 @@ func (monster *Monster) TakeDamage(damage int64) {
 	if hp <= 0 {
 		monster.Attrs.SetStr("action", "death")
 		monster.Destroy()
+	}
+	monster.CallAllClients("DisplayAttacked", monster.ID)
+}
+
+func (monster *Monster) skillCalc() {
+	defer func() {
+		if err := recover(); err != nil {
+
+			gwlog.Fatalf("skillCalc", err, utils.PrintStackTrace(err))
+		}
+	}()
+	for {
+		select {
+		case x := <-monster.skillChan:
+			if x.name == "cast" {
+				time.Sleep(3 * time.Second)
+				// space := goworld.GetSpace(monster.Space.ID)
+				// ms := goworld.GetSpaceI(monster.Space.ID)
+				space := monster.Space
+				mySpace := (*MySpace)(unsafe.Pointer(space))
+				players := mySpace.AllPlayer()
+				for _, p := range players {
+					if utils.CalcDistance(p.Position, x.Position) > monster.CastRadius {
+						continue
+					}
+					//x1:= p.I.(*Player)
+					//x1.
+					player := (*Player)(unsafe.Pointer(p))
+					player.TakeDamage(0)
+					p.CallAllClients("DisplayAttacked", p.ID)
+				}
+			}
+		}
 	}
 }

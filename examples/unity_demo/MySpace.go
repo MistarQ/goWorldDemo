@@ -42,9 +42,12 @@ func (space *MySpace) DumpEntityStatus() {
 }
 
 func (space *MySpace) SummonMonsters() {
-	if space.CountEntities("Monster") < space.CountEntities("Player")*2 {
+	if space.CountEntities("Monster") < 1 {
 		space.CreateEntity("Monster", entity.Vector3{})
 	}
+	//if space.CountEntities("Monster") < space.CountEntities("Player")*1 {
+	//	space.CreateEntity("Monster", entity.Vector3{})
+	//}
 }
 
 // OnEntityEnterSpace is called when entity enters space
@@ -138,4 +141,14 @@ func isAllServicesReady() bool {
 
 func onAllServicesReady() {
 	gwlog.Infof("All services are ready!")
+}
+
+func (space *MySpace) AllPlayer() (players []*goworld.Entity) {
+
+	for e := range space.Entities {
+		if e.TypeName == "Player" {
+			players = append(players, e)
+		}
+	}
+	return players
 }

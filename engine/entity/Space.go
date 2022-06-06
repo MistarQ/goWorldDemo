@@ -22,11 +22,11 @@ var (
 
 // Space is the entity type of spaces
 //
-// Spaces are also entities but with space management logics
+// Spaces are also Entities but with space management logics
 type Space struct {
 	Entity
 
-	entities EntitySet
+	Entities EntitySet
 	Kind     int
 	I        ISpace
 
@@ -59,7 +59,7 @@ func (space *Space) GetTowerRange() (minX, minY, maxX, maxY Coord) {
 
 // OnInit initialize Space entity
 func (space *Space) OnInit() {
-	space.entities = EntitySet{}
+	space.Entities = EntitySet{}
 	space.I = space.Entity.I.(ISpace)
 
 	space.I.OnSpaceInit()
@@ -97,7 +97,7 @@ func (space *Space) EnableAOI(defaultAOIDistance Coord) {
 		gwlog.Panicf("%s.EnableAOI: AOI already enabled", space)
 	}
 
-	if len(space.entities) > 0 {
+	if len(space.Entities) > 0 {
 		gwlog.Panicf("%s is already using AOI", space)
 	}
 
@@ -142,8 +142,8 @@ func (space *Space) OnSpaceCreated() {
 // OnDestroy is called when Space entity is destroyed
 func (space *Space) OnDestroy() {
 	space.I.OnSpaceDestroy()
-	// destroy all entities
-	for e := range space.entities {
+	// destroy all Entities
+	for e := range space.Entities {
 		e.Destroy()
 	}
 
@@ -190,13 +190,13 @@ func (space *Space) enter(entity *Entity, pos Vector3, isRestore bool) {
 	}
 
 	entity.Space = space
-	space.entities.Add(entity)
+	space.Entities.Add(entity)
 	entity.Position = pos
 
 	entity.syncInfoFlag |= sifSyncOwnClient | sifSyncNeighborClients
 
 	if !isRestore {
-		entity.client.sendCreateEntity(&space.Entity, false) // create Space entity before every other entities
+		entity.client.sendCreateEntity(&space.Entity, false) // create Space entity before every other Entities
 
 		if space.aoiMgr != nil && entity.IsUseAOI() {
 			space.aoiMgr.Enter(&entity.aoi, aoi.Coord(pos.X), aoi.Coord(pos.Z))
@@ -226,8 +226,8 @@ func (space *Space) leave(entity *Entity) {
 		return
 	}
 
-	// remove from Space entities
-	space.entities.Del(entity)
+	// remove from Space Entities
+	space.Entities.Del(entity)
 	entity.Space = nilSpace
 
 	if space.aoiMgr != nil && entity.IsUseAOI() {
@@ -269,10 +269,10 @@ func (space *Space) OnEntityLeaveSpace(entity *Entity) {
 	}
 }
 
-// CountEntities returns the number of entities of specified type in space
+// CountEntities returns the number of Entities of specified type in space
 func (space *Space) CountEntities(typeName string) int {
 	count := 0
-	for e := range space.entities {
+	for e := range space.Entities {
 		if e.TypeName == typeName {
 			count += 1
 		}
@@ -280,14 +280,14 @@ func (space *Space) CountEntities(typeName string) int {
 	return count
 }
 
-// GetEntityCount returns the total count of entities in space
+// GetEntityCount returns the total count of Entities in space
 func (space *Space) GetEntityCount() int {
-	return len(space.entities)
+	return len(space.Entities)
 }
 
-// ForEachEntity visits all entities in space and call function f with each entity
+// ForEachEntity visits all Entities in space and call function f with each entity
 func (space *Space) ForEachEntity(f func(e *Entity)) {
-	for e := range space.entities {
+	for e := range space.Entities {
 		f(e)
 	}
 }
@@ -299,7 +299,7 @@ func (space *Space) GetEntity(entityID common.EntityID) *Entity {
 		return nil
 	}
 
-	if space.entities.Contains(entity) {
+	if space.Entities.Contains(entity) {
 		return entity
 	} else {
 		return nil

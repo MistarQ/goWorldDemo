@@ -6,7 +6,7 @@ import (
 	"github.com/xiaonanln/goworld/engine/common"
 )
 
-// EntityMap is the data structure for maintaining entity IDs to entities
+// EntityMap is the data structure for maintaining entity IDs to Entities
 type EntityMap map[common.EntityID]*Entity
 
 // Add adds a new entity to EntityMap
@@ -40,7 +40,7 @@ func (em EntityMap) Values() (vals []*Entity) {
 	return
 }
 
-// EntitySet is the data structure for a set of entities
+// EntitySet is the data structure for a set of Entities
 type EntitySet map[*Entity]struct{}
 
 // Add adds an entity to the EntitySet

@@ -118,6 +118,10 @@ func GetSpace(id EntityID) *Space {
 	return entity.GetSpace(id)
 }
 
+func GetSpaceI(id EntityID) entity.ISpace {
+	return entity.GetSpaceI(id)
+}
+
 // GetGameID gets the local server ID
 //
 // server ID is a uint16 number starts from 1, which should be different for each servers

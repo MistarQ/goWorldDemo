@@ -12,7 +12,7 @@ import (
 
 // GameClient represents the game Client of entity
 //
-// Each entity can have at most one GameClient, and GameClient can be given to other entities
+// Each entity can have at most one GameClient, and GameClient can be given to other Entities
 type GameClient struct {
 	clientid common.ClientID
 	gateid   uint16
