@@ -6,12 +6,15 @@ import (
 	"github.com/xiaonanln/goworld/engine/consts"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface"
+	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface/job"
 	"strconv"
 )
 
 // Player 对象代表一名玩家
 type Player struct {
 	entity.Entity
+	Job playerInterface.IJob
 }
 
 func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -27,11 +30,15 @@ func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
 // OnCreated 在Player对象创建后被调用
 func (a *Player) OnCreated() {
 	a.Entity.OnCreated()
+	// 应该从account service 获取
 	a.setDefaultAttrs()
+	// 应该从account service 获取
+	a.setJob()
 }
 
 // setDefaultAttrs 设置玩家的一些默认属性
 func (a *Player) setDefaultAttrs() {
+	// 应该从account service 获取
 	a.Attrs.SetDefaultInt("spaceKind", 1)
 	a.Attrs.SetDefaultStr("name", "noname")
 	a.Attrs.SetDefaultInt("lv", 1)
@@ -40,6 +47,13 @@ func (a *Player) setDefaultAttrs() {
 	a.Attrs.SetDefaultStr("action", "idle")
 
 	a.SetClientSyncing(true)
+}
+
+func (a *Player) setJob() {
+	// 应该从account service 获取
+	a.Job = &job.Samurai{}
+	// 需要的话可以通过job指针将player对象转为指定职业
+	//x:= a.Job.(*job.Mage)
 }
 
 // GetSpaceID 获得玩家的场景ID并发给调用者

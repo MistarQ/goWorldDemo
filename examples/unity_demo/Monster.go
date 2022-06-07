@@ -6,7 +6,6 @@ import (
 	"github.com/xiaonanln/goworld/engine/gwlog"
 	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
 	"time"
-	"unsafe"
 )
 
 // Monster type
@@ -20,7 +19,7 @@ type Monster struct {
 	lastAttackTime time.Time
 
 	CastCD       time.Duration
-	CastRadius   float64
+	CastRadius   entity.Coord
 	lastCastTime time.Time
 
 	skillChan chan *castSkill
@@ -221,18 +220,13 @@ func (monster *Monster) skillCalc() {
 		case x := <-monster.skillChan:
 			if x.name == "cast" {
 				time.Sleep(3 * time.Second)
-				// space := goworld.GetSpace(monster.Space.ID)
-				// ms := goworld.GetSpaceI(monster.Space.ID)
 				space := monster.Space
-				mySpace := (*MySpace)(unsafe.Pointer(space))
-				players := mySpace.AllPlayer()
-				for _, p := range players {
-					if utils.CalcDistance(p.Position, x.Position) > monster.CastRadius {
+				players := space.Entities
+				for p, _ := range players {
+					player := p.I.(*Player)
+					if player.Position.DistanceTo(monster.Position) > monster.CastRadius {
 						continue
 					}
-					//x1:= p.I.(*Player)
-					//x1.
-					player := (*Player)(unsafe.Pointer(p))
 					player.TakeDamage(0)
 					p.CallAllClients("DisplayAttacked", p.ID)
 				}
