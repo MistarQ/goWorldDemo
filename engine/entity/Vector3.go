@@ -27,6 +27,13 @@ func (p Vector3) DistanceTo(o Vector3) Coord {
 	return Coord(math.Sqrt(float64(dx*dx + dy*dy + dz*dz)))
 }
 
+func (p Vector3) DistanceTo2D(o Vector3) Coord {
+	dx := p.X - o.X
+
+	dz := p.Z - o.Z
+	return Coord(math.Sqrt(float64(dx*dx + dz*dz)))
+}
+
 // Sub calculates Vector3 p - Vector3 o
 func (p Vector3) Sub(o Vector3) Vector3 {
 	return Vector3{p.X - o.X, p.Y - o.Y, p.Z - o.Z}

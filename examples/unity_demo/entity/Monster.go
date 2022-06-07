@@ -1,4 +1,4 @@
-package main
+package entity
 
 import (
 	"github.com/xiaonanln/goworld"
@@ -41,7 +41,7 @@ func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
 }
 
 func (monster *Monster) OnCreated() {
-	monster.Attrs.SetDefaultInt("radius", 5)
+	monster.Attrs.SetDefaultInt("radius", 3)
 	monster.skillChan = make(chan *castSkill, 5)
 	gwlog.Infof("monster created", monster)
 }
@@ -223,8 +223,11 @@ func (monster *Monster) skillCalc() {
 				space := monster.Space
 				players := space.Entities
 				for p, _ := range players {
+					if p.TypeName != "Player" {
+						continue
+					}
 					player := p.I.(*Player)
-					if player.Position.DistanceTo(monster.Position) > monster.CastRadius {
+					if player.Position.DistanceTo2D(x.Position) > monster.CastRadius {
 						continue
 					}
 					player.TakeDamage(0)

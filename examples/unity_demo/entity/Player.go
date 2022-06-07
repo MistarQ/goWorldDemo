@@ -1,4 +1,4 @@
-package main
+package entity
 
 import (
 	"github.com/xiaonanln/goworld"
@@ -6,15 +6,13 @@ import (
 	"github.com/xiaonanln/goworld/engine/consts"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
-	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface"
-	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface/job"
 	"strconv"
 )
 
 // Player 对象代表一名玩家
 type Player struct {
 	entity.Entity
-	Job playerInterface.IJob
+	IJob
 }
 
 func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -51,9 +49,14 @@ func (a *Player) setDefaultAttrs() {
 
 func (a *Player) setJob() {
 	// 应该从account service 获取
-	a.Job = &job.Samurai{}
-	// 需要的话可以通过job指针将player对象转为指定职业
-	//x:= a.Job.(*job.Mage)
+	//var j Job
+	//j = Job{IJob: &Mage{Job{Atk: 50, AttackRange: 10}},
+	//	Atk:         50,
+	//	AttackRange: 10,
+	//}
+	//a.Job = j
+	a.IJob = &Mage{Job{Atk: 30, AttackRange: 10}}
+
 }
 
 // GetSpaceID 获得玩家的场景ID并发给调用者
@@ -117,29 +120,28 @@ func (a *Player) SetAction_Client(action string) {
 	a.Attrs.SetStr("action", action)
 }
 
-func (a *Player) ShootMiss_Client() {
-	a.Attrs.SetStr("action", "attack")
-	a.CallAllClients("Shoot")
-}
+//func (a *Player) ShootMiss_Client() {
+//	a.Attrs.SetStr("action", "attack")
+//	a.CallAllClients("Shoot")
+//}
 
-func (a *Player) ShootHit_Client(victimID common.EntityID) {
-	a.CallAllClients("Shoot")
-	victim := a.Space.GetEntity(victimID)
-	if victim == nil {
-		gwlog.Warnf("Shoot %s, but monster not found", victimID)
-		return
-	}
-
-	if victim.Attrs.GetInt("hp") <= 0 {
-		return
-	}
-
-	monster := victim.I.(*Monster)
-	monster.TakeDamage(50)
-}
+//func (a *Player) ShootHit_Client(victimID common.EntityID) {
+//	a.CallAllClients("Shoot")
+//	victim := a.Space.GetEntity(victimID)
+//	if victim == nil {
+//		gwlog.Warnf("Shoot %s, but monster not found", victimID)
+//		return
+//	}
+//
+//	if victim.Attrs.GetInt("hp") <= 0 {
+//		return
+//	}
+//
+//	monster := victim.I.(*Monster)
+//	monster.TakeDamage(50)
+//}
 
 func (a *Player) Cast_Client(victimID common.EntityID) {
-	// a.CallAllClients("Cast")
 	victim := a.Space.GetEntity(victimID)
 	if victim == nil {
 		gwlog.Warnf("Cast %s, but monster not found", victimID)
@@ -148,9 +150,7 @@ func (a *Player) Cast_Client(victimID common.EntityID) {
 	if victim.Attrs.GetInt("hp") <= 0 {
 		return
 	}
-
-	monster := victim.I.(*Monster)
-	monster.TakeDamage(50)
+	a.Cast(victim)
 }
 
 func (player *Player) TakeDamage(damage int64) {
