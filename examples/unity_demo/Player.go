@@ -6,15 +6,13 @@ import (
 	"github.com/xiaonanln/goworld/engine/consts"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
-	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface"
-	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface/job"
 	"strconv"
 )
 
 // Player 对象代表一名玩家
 type Player struct {
 	entity.Entity
-	Job playerInterface.IJob
+	*Job
 }
 
 func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -51,7 +49,11 @@ func (a *Player) setDefaultAttrs() {
 
 func (a *Player) setJob() {
 	// 应该从account service 获取
-	a.Job = &job.Samurai{}
+	a.Job = &Job{
+		Atk:         50,
+		AttackRange: 10,
+	}
+	a.Attack()
 	// 需要的话可以通过job指针将player对象转为指定职业
 	//x:= a.Job.(*job.Mage)
 }
