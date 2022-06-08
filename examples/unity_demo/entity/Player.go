@@ -6,6 +6,8 @@ import (
 	"github.com/xiaonanln/goworld/engine/consts"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface"
+	"github.com/xiaonanln/goworld/examples/unity_demo/playerInterface/job"
 	"strconv"
 )
 
@@ -119,26 +121,26 @@ func (a *Player) SetAction_Client(action string) {
 	a.Attrs.SetStr("action", action)
 }
 
-func (a *Player) ShootMiss_Client() {
-	a.Attrs.SetStr("action", "attack")
-	a.CallAllClients("Shoot")
-}
+//func (a *Player) ShootMiss_Client() {
+//	a.Attrs.SetStr("action", "attack")
+//	a.CallAllClients("Shoot")
+//}
 
-func (a *Player) ShootHit_Client(victimID common.EntityID) {
-	a.CallAllClients("Shoot")
-	victim := a.Space.GetEntity(victimID)
-	if victim == nil {
-		gwlog.Warnf("Shoot %s, but monster not found", victimID)
-		return
-	}
-
-	if victim.Attrs.GetInt("hp") <= 0 {
-		return
-	}
-
-	monster := victim.I.(*Monster)
-	monster.TakeDamage(50)
-}
+//func (a *Player) ShootHit_Client(victimID common.EntityID) {
+//	a.CallAllClients("Shoot")
+//	victim := a.Space.GetEntity(victimID)
+//	if victim == nil {
+//		gwlog.Warnf("Shoot %s, but monster not found", victimID)
+//		return
+//	}
+//
+//	if victim.Attrs.GetInt("hp") <= 0 {
+//		return
+//	}
+//
+//	monster := victim.I.(*Monster)
+//	monster.TakeDamage(50)
+//}
 
 func (a *Player) Cast_Client(victimID common.EntityID) {
 	// a.CallAllClients("Cast")

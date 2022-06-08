@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/xiaonanln/goworld"
+	"github.com/xiaonanln/goworld/examples/unity_demo/entity"
 )
 
 var (
@@ -19,9 +20,9 @@ func main() {
 	// 注册Account类型
 	goworld.RegisterEntity("Account", &Account{})
 	// 注册Monster类型
-	goworld.RegisterEntity("Monster", &Monster{})
+	goworld.RegisterEntity("Monster", &entity.Monster{})
 	// 注册Avatar类型，并定义属性
-	goworld.RegisterEntity("Player", &Player{})
+	goworld.RegisterEntity("Player", &entity.Player{})
 	// 运行游戏服务器
 	goworld.Run()
 }
