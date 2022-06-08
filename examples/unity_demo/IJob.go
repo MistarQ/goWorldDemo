@@ -1,4 +1,4 @@
-package entity
+package main
 
 import (
 	"github.com/xiaonanln/goworld/engine/entity"
