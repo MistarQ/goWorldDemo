@@ -6,13 +6,15 @@ import (
 	"github.com/xiaonanln/goworld/engine/consts"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"math/rand"
 	"strconv"
+	"time"
 )
 
 // Player 对象代表一名玩家
 type Player struct {
 	entity.Entity
-	*Job
+	*rand.Rand
 }
 
 func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -23,6 +25,10 @@ func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
 	desc.DefineAttr("hpmax", "AllClients")
 	desc.DefineAttr("action", "AllClients")
 	desc.DefineAttr("spaceKind", "Persistent")
+	desc.DefineAttr("attackRange", "AllClients")
+	desc.DefineAttr("atk", "AllClients")
+	desc.DefineAttr("crit", "AllClients")
+	desc.DefineAttr("critIndex", "AllClients")
 }
 
 // OnCreated 在Player对象创建后被调用
@@ -30,8 +36,7 @@ func (a *Player) OnCreated() {
 	a.Entity.OnCreated()
 	// 应该从account service 获取
 	a.setDefaultAttrs()
-	// 应该从account service 获取
-	a.setJob()
+	a.Rand = rand.New(rand.NewSource(time.Now().Unix()))
 }
 
 // setDefaultAttrs 设置玩家的一些默认属性
@@ -43,18 +48,11 @@ func (a *Player) setDefaultAttrs() {
 	a.Attrs.SetDefaultInt("hp", 100)
 	a.Attrs.SetDefaultInt("hpmax", 100)
 	a.Attrs.SetDefaultStr("action", "idle")
-
+	a.Attrs.SetDefaultInt("attackRange", 5)
+	a.Attrs.SetDefaultInt("atk", 30)
+	a.Attrs.SetDefaultInt("crit", 10)
+	a.Attrs.SetDefaultInt("critIndex", 2)
 	a.SetClientSyncing(true)
-}
-
-func (a *Player) setJob() {
-	// 应该从account service 获取
-	a.Job = &Job{
-		Atk:         50,
-		AttackRange: 10,
-	}
-	// 需要的话可以通过job指针将player对象转为指定职业
-	//x:= a.Job.(*job.Mage)
 }
 
 // GetSpaceID 获得玩家的场景ID并发给调用者
@@ -95,15 +93,6 @@ func (a *Player) DoEnterSpace(kind int, spaceID common.EntityID) {
 	a.EnterSpace(spaceID, entity.Vector3{})
 }
 
-//func (a *Player) randomPosition() entity.Vector3 {
-//	minCoord, maxCoord := -400, 400
-//	return entity.Vector3{
-//		X: entity.Coord(minCoord + rand.Intn(maxCoord-minCoord)),
-//		Y: 0,
-//		Z: entity.Coord(minCoord + rand.Intn(maxCoord-minCoord)),
-//	}
-//}
-
 // OnEnterSpace is called when avatar enters a space
 func (a *Player) OnEnterSpace() {
 	gwlog.Infof("%s ENTER SPACE %s", a, a.Space)
@@ -118,27 +107,6 @@ func (a *Player) SetAction_Client(action string) {
 	a.Attrs.SetStr("action", action)
 }
 
-//func (a *Player) ShootMiss_Client() {
-//	a.Attrs.SetStr("action", "attack")
-//	a.CallAllClients("Shoot")
-//}
-
-//func (a *Player) ShootHit_Client(victimID common.EntityID) {
-//	a.CallAllClients("Shoot")
-//	victim := a.Space.GetEntity(victimID)
-//	if victim == nil {
-//		gwlog.Warnf("Shoot %s, but monster not found", victimID)
-//		return
-//	}
-//
-//	if victim.Attrs.GetInt("hp") <= 0 {
-//		return
-//	}
-//
-//	monster := victim.I.(*Monster)
-//	monster.TakeDamage(50)
-//}
-
 func (a *Player) Cast_Client(victimID common.EntityID) {
 	// a.CallAllClients("Cast")
 	victim := a.Space.GetEntity(victimID)
@@ -151,7 +119,19 @@ func (a *Player) Cast_Client(victimID common.EntityID) {
 	}
 
 	monster := victim.I.(*Monster)
-	monster.TakeDamage(50)
+	dmg, isCrit := a.CalcDmg(monster)
+	monster.TakeDamage(dmg, isCrit)
+}
+
+func (a *Player) CalcDmg(monster *Monster) (dmg int64, isCrit bool) {
+	r := a.Intn(100) + 1
+	dmg = a.Attrs.GetInt("atk")
+
+	if int64(r) > a.Attrs.GetInt("crit") {
+		dmg *= 2
+		isCrit = true
+	}
+	return dmg, isCrit
 }
 
 func (player *Player) TakeDamage(damage int64) {
@@ -173,3 +153,33 @@ func (player *Player) TakeDamage(damage int64) {
 		player.SetClientSyncing(false)
 	}
 }
+
+//func (a *Player) randomPosition() entity.Vector3 {
+//	minCoord, maxCoord := -400, 400
+//	return entity.Vector3{
+//		X: entity.Coord(minCoord + rand.Intn(maxCoord-minCoord)),
+//		Y: 0,
+//		Z: entity.Coord(minCoord + rand.Intn(maxCoord-minCoord)),
+//	}
+//}
+
+//func (a *Player) ShootMiss_Client() {
+//	a.Attrs.SetStr("action", "attack")
+//	a.CallAllClients("Shoot")
+//}
+
+//func (a *Player) ShootHit_Client(victimID common.EntityID) {
+//	a.CallAllClients("Shoot")
+//	victim := a.Space.GetEntity(victimID)
+//	if victim == nil {
+//		gwlog.Warnf("Shoot %s, but monster not found", victimID)
+//		return
+//	}
+//
+//	if victim.Attrs.GetInt("hp") <= 0 {
+//		return
+//	}
+//
+//	monster := victim.I.(*Monster)
+//	monster.TakeDamage(50)
+//}

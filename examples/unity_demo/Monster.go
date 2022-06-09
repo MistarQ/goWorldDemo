@@ -192,7 +192,7 @@ func (monster *Monster) GetDamage() int64 {
 	return 0
 }
 
-func (monster *Monster) TakeDamage(damage int64) {
+func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
 	hp := monster.GetInt("hp")
 	hp = hp - damage
 	if hp < 0 {
@@ -205,7 +205,7 @@ func (monster *Monster) TakeDamage(damage int64) {
 		monster.Attrs.SetStr("action", "death")
 		monster.Destroy()
 	}
-	monster.CallAllClients("DisplayAttacked", monster.ID)
+	monster.CallAllClients("DisplayAttacked", monster.ID, isCrit)
 }
 
 func (monster *Monster) skillCalc() {
