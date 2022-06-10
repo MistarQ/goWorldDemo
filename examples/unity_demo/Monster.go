@@ -21,13 +21,19 @@ type Monster struct {
 	CastCD       time.Duration
 	CastRadius   entity.Coord
 	lastCastTime time.Time
+	isCasting    bool
 
-	skillChan chan *castSkill
+	skillChan chan *Skill
 }
 
-type castSkill struct {
-	name     string
-	Position goworld.Vector3
+type Skill struct {
+	name         string
+	Position     goworld.Vector3
+	skillType    int
+	castTime     time.Duration
+	delayTime    time.Duration
+	startTIme    time.Time
+	durationTime time.Duration
 }
 
 func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -42,7 +48,7 @@ func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
 
 func (monster *Monster) OnCreated() {
 	monster.Attrs.SetDefaultInt("radius", 3)
-	monster.skillChan = make(chan *castSkill, 5)
+	monster.skillChan = make(chan *Skill, 5)
 	gwlog.Infof("monster created", monster)
 }
 
@@ -51,7 +57,9 @@ func (monster *Monster) OnEnterSpace() {
 	monster.AddTimer(time.Millisecond*100, "AI")
 	monster.lastTickTime = time.Now()
 	monster.AddTimer(time.Millisecond*30, "Tick")
-	go monster.skillCalc()
+	// 计算技能
+	go monster.skillTimeline()
+	go monster.skillManage()
 }
 
 func (monster *Monster) setDefaultAttrs() {
@@ -103,11 +111,16 @@ func (monster *Monster) Tick() {
 
 	now := time.Now()
 
-	if !now.Before(monster.lastCastTime.Add(monster.CastCD)) {
-		monster.cast(monster.Position)
-		monster.lastCastTime = now
+	// 施法时无动作
+	if monster.isCasting {
 		return
 	}
+
+	//if !now.Before(monster.lastCastTime.Add(monster.CastCD)) {
+	//	monster.cast(monster.Position)
+	//	monster.lastCastTime = now
+	//	return
+	//}
 
 	if monster.attackingTarget != nil && monster.IsInterestedIn(monster.attackingTarget) {
 		if !now.Before(monster.lastAttackTime.Add(monster.attackCD)) {
@@ -172,9 +185,13 @@ func (monster *Monster) Attacking(player *entity.Entity) {
 
 func (monster *Monster) cast(position goworld.Vector3) {
 	monster.CallAllClients("DisplayCast", monster.ID)
-	c := &castSkill{
-		name:     "cast",
-		Position: position}
+	c := &Skill{
+		name:         "cast",
+		Position:     position,
+		skillType:    0,
+		delayTime:    3 * time.Second,
+		startTIme:    time.Now(),
+		durationTime: 0}
 	monster.skillChan <- c
 }
 
@@ -208,32 +225,111 @@ func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
 	monster.CallAllClients("DisplayAttacked", monster.ID, isCrit)
 }
 
-func (monster *Monster) skillCalc() {
+func (monster *Monster) skillTimeline() {
+	// 理论上是从配置文件种读取时间轴配置
+	time.Sleep(10 * time.Second)
+
+	s0 := &Skill{
+		name:         "Hollest of Holy",
+		Position:     monster.Position,
+		skillType:    AOE,
+		castTime:     3 * time.Second,
+		delayTime:    0,
+		startTIme:    time.Now(),
+		durationTime: 0}
+	monster.skillChan <- s0
+	time.Sleep(10 * time.Second)
+
+	s1 := &Skill{
+		name:         "Empty dimension",
+		Position:     monster.Position,
+		skillType:    MOON,
+		castTime:     3 * time.Second,
+		delayTime:    0,
+		startTIme:    time.Now(),
+		durationTime: 0}
+	monster.skillChan <- s1
+	time.Sleep(10 * time.Second)
+
+	s2 := &Skill{
+		name:         "HEAVEN BLAZE",
+		Position:     monster.Position,
+		skillType:    DEATH_PENALTY,
+		castTime:     3 * time.Second,
+		delayTime:    0,
+		startTIme:    time.Now(),
+		durationTime: 0}
+	monster.skillChan <- s2
+
+}
+
+func (monster *Monster) skillManage() {
 	defer func() {
 		if err := recover(); err != nil {
 
-			gwlog.Fatalf("skillCalc", err, utils.PrintStackTrace(err))
+			gwlog.Fatalf("skillManage", err, utils.PrintStackTrace(err))
 		}
 	}()
 	for {
 		select {
-		case x := <-monster.skillChan:
-			if x.name == "cast" {
-				time.Sleep(3 * time.Second)
-				space := monster.Space
-				players := space.Entities
-				for p, _ := range players {
-					if p.TypeName != "Player" {
-						continue
-					}
-					player := p.I.(*Player)
-					if player.Position.DistanceTo2D(x.Position) > monster.CastRadius {
-						continue
-					}
-					player.TakeDamage(0)
-					p.CallAllClients("DisplayAttacked", p.ID)
-				}
-			}
+		case skill := <-monster.skillChan:
+			go monster.calcSkill(skill)
 		}
 	}
+}
+
+func (monster *Monster) calcSkill(skill *Skill) {
+	if skill.castTime > 0 {
+		monster.isCasting = true
+		monster.Attrs.SetStr("action", "cast")
+		time.Sleep(skill.castTime)
+		monster.isCasting = false
+		monster.Attrs.SetStr("action", "idle")
+	}
+	if skill.delayTime > 0 {
+		time.Sleep(skill.delayTime)
+		monster.castSkill(skill)
+	}
+	// 持续性技能
+	if skill.durationTime > 0 {
+		monster.durationSkill(skill)
+	}
+}
+
+func (monster *Monster) durationSkill(skill *Skill) {
+	for skill.durationTime > 0 {
+		skill.durationTime -= 1
+		monster.castSkill(skill)
+	}
+}
+
+func (monster *Monster) castSkill(skill *Skill) {
+	space := monster.Space
+	players := space.Entities
+	switch skill.skillType {
+	case AOE:
+		for p, _ := range players {
+			if p.TypeName != "Player" {
+				continue
+			}
+			player := p.I.(*Player)
+			player.TakeDamage(0)
+			p.CallAllClients("DisplayAttacked", p.ID)
+		}
+	case IRON:
+		for p, _ := range players {
+			if p.TypeName != "Player" {
+				continue
+			}
+			player := p.I.(*Player)
+			if player.Position.DistanceTo2D(skill.Position) > monster.CastRadius {
+				continue
+			}
+			player.TakeDamage(0)
+			p.CallAllClients("DisplayAttacked", p.ID)
+		}
+	case DEATH_PENALTY:
+
+	}
+
 }
