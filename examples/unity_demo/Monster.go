@@ -329,7 +329,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	case DEATH_PENALTY:
-
+		gwlog.Debugf("1", "1")
 	}
 
 }
