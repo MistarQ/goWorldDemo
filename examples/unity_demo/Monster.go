@@ -24,16 +24,10 @@ type Monster struct {
 	isCasting    bool
 
 	skillChan chan *Skill
-}
 
-type Skill struct {
-	name         string
-	Position     goworld.Vector3
-	skillType    int
-	castTime     time.Duration
-	delayTime    time.Duration
-	startTIme    time.Time
-	durationTime time.Duration
+	buffList []*Buff
+
+	battleStarted bool
 }
 
 func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -55,11 +49,6 @@ func (monster *Monster) OnCreated() {
 func (monster *Monster) OnEnterSpace() {
 	monster.setDefaultAttrs()
 	monster.AddTimer(time.Millisecond*100, "AI")
-	monster.lastTickTime = time.Now()
-	monster.AddTimer(time.Millisecond*30, "Tick")
-	// 计算技能
-	go monster.skillTimeline()
-	go monster.skillManage()
 }
 
 func (monster *Monster) setDefaultAttrs() {
@@ -78,6 +67,7 @@ func (monster *Monster) setDefaultAttrs() {
 }
 
 func (monster *Monster) AI() {
+
 	var nearestPlayer *entity.Entity
 	for entity := range monster.InterestedIn {
 
@@ -95,6 +85,14 @@ func (monster *Monster) AI() {
 		}
 	}
 
+	if !monster.battleStarted && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
+		monster.startBattle()
+	}
+
+	if !monster.battleStarted {
+		return
+	}
+
 	if nearestPlayer == nil {
 		monster.Idling()
 		return
@@ -108,6 +106,10 @@ func (monster *Monster) AI() {
 }
 
 func (monster *Monster) Tick() {
+
+	if !monster.battleStarted {
+		return
+	}
 
 	now := time.Now()
 
@@ -210,6 +212,10 @@ func (monster *Monster) GetDamage() int64 {
 }
 
 func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
+	if !monster.battleStarted {
+		monster.startBattle()
+	}
+
 	hp := monster.GetInt("hp")
 	hp = hp - damage
 	if hp < 0 {
@@ -223,6 +229,15 @@ func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
 		monster.Destroy()
 	}
 	monster.CallAllClients("DisplayAttacked", monster.ID, isCrit)
+}
+
+func (monster *Monster) startBattle() {
+	monster.battleStarted = true
+	monster.lastTickTime = time.Now()
+	monster.AddTimer(time.Millisecond*30, "Tick")
+	// 计算技能
+	go monster.skillTimeline()
+	go monster.skillManage()
 }
 
 func (monster *Monster) skillTimeline() {
@@ -254,11 +269,12 @@ func (monster *Monster) skillTimeline() {
 	s2 := &Skill{
 		name:         "HEAVEN BLAZE",
 		Position:     monster.Position,
-		skillType:    DEATH_PENALTY,
+		skillType:    DeathPenaltyAOE,
 		castTime:     3 * time.Second,
 		delayTime:    0,
 		startTIme:    time.Now(),
-		durationTime: 0}
+		durationTime: 0,
+		target:       monster.attackingTarget}
 	monster.skillChan <- s2
 
 }
@@ -280,6 +296,7 @@ func (monster *Monster) skillManage() {
 
 func (monster *Monster) calcSkill(skill *Skill) {
 	if skill.castTime > 0 {
+		monster.CallAllClients("DisplayCastBar", float32(skill.castTime.Seconds()), skill.skillType, skill.name, monster.ID)
 		monster.isCasting = true
 		monster.Attrs.SetStr("action", "cast")
 		time.Sleep(skill.castTime)
@@ -288,6 +305,8 @@ func (monster *Monster) calcSkill(skill *Skill) {
 	}
 	if skill.delayTime > 0 {
 		time.Sleep(skill.delayTime)
+		monster.castSkill(skill)
+	} else {
 		monster.castSkill(skill)
 	}
 	// 持续性技能
@@ -328,8 +347,24 @@ func (monster *Monster) castSkill(skill *Skill) {
 			player.TakeDamage(0)
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
-	case DEATH_PENALTY:
-
+	case DeathPenaltyAOE:
+		if skill.target == nil {
+			return
+		}
+		target := skill.target.I.(*Player)
+		target.TakeDamage(0)
+		target.CallAllClients("DisplayAttacked", target.ID)
+		for p, _ := range players {
+			if p.TypeName != "Player" {
+				continue
+			}
+			player := p.I.(*Player)
+			if player.Position.DistanceTo2D(target.Position) > monster.CastRadius {
+				continue
+			}
+			player.TakeDamage(0)
+			p.CallAllClients("DisplayAttacked", p.ID)
+		}
 	}
 
 }

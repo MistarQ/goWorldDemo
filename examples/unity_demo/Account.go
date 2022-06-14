@@ -99,6 +99,7 @@ func (a *Account) OnGetPlayerSpaceID(playerID common.EntityID, spaceID common.En
 func (a *Account) onPlayerEntityFound(player *entity.Entity) {
 	gwlog.Infof("Player %s is found, giving client to ...", player)
 	a.logIn = false
+	player.Position = goworld.Vector3{X: -10}
 	a.GiveClientTo(player) // 将Account的客户端移交给Player
 }
 
