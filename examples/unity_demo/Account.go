@@ -11,6 +11,7 @@ import (
 type Account struct {
 	entity.Entity // 自定义对象类型必须继承entity.Entity
 	logIn         bool
+	name          string
 }
 
 func (a *Account) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -76,6 +77,7 @@ func (a *Account) Login_Client(username string, password string) {
 				a.CallClient("ShowError", "Server Error："+err.Error()) // 服务器错误
 				return
 			}
+			a.name = username
 			playerID := common.EntityID(_playerID)
 			goworld.LoadEntityAnywhere("Player", playerID)
 			a.Call(playerID, "GetSpaceID", a.ID)
@@ -99,7 +101,8 @@ func (a *Account) OnGetPlayerSpaceID(playerID common.EntityID, spaceID common.En
 func (a *Account) onPlayerEntityFound(player *entity.Entity) {
 	gwlog.Infof("Player %s is found, giving client to ...", player)
 	a.logIn = false
-	player.Position = goworld.Vector3{X: -10}
+	player.Attrs.SetStr("name", a.name)
+	player.Position = goworld.Vector3{0, 0, -10}
 	a.GiveClientTo(player) // 将Account的客户端移交给Player
 }
 

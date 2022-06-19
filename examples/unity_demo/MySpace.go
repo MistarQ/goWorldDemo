@@ -27,11 +27,11 @@ func (space *MySpace) OnSpaceCreated() {
 
 	goworld.CallServiceShardKey("SpaceService", strconv.Itoa(space.Kind), "NotifySpaceLoaded", space.Kind, space.ID)
 	space.AddTimer(time.Second*5, "DumpEntityStatus")
-	space.AddTimer(time.Second*5, "SummonMonsters")
-	//M := 10
-	//for i := 0; i < M; i++ {
-	//	space.CreateEntity("Monster", entity.Vector3{})
-	//}
+	// space.AddTimer(time.Second*5, "SummonMonsters")
+	space.AddTimer(time.Second, "EdgeDetection")
+	space.AddTimer(time.Second*5, "ResetScene")
+	space.SummonMonsters()
+
 }
 
 func (space *MySpace) DumpEntityStatus() {
@@ -41,12 +41,49 @@ func (space *MySpace) DumpEntityStatus() {
 }
 
 func (space *MySpace) SummonMonsters() {
-	if space.CountEntities("Monster") < 1 {
-		space.CreateEntity("Monster", entity.Vector3{})
+	monster1 := space.CreateEntity("Monster", entity.Vector3{5, 0, 5})
+	monster1.Attrs.SetStr("name", "Ser Grinnaux")
+	monster2 := space.CreateEntity("Monster", entity.Vector3{-5, 0, 5})
+	monster2.Attrs.SetStr("name", "Ser Adelphel")
+}
+
+func (space *MySpace) EdgeDetection() {
+	for e := range space.Entities {
+		if e.TypeName == "Player" {
+
+			if (e.Position.X > 20) ||
+				e.Position.X < -20 ||
+				e.Position.Z > 20 ||
+				e.Position.Z < -20 {
+
+				e.I.(*Player).TakeDamage(99999)
+			}
+		}
 	}
-	//if space.CountEntities("Monster") < space.CountEntities("Player")*1 {
-	//	space.CreateEntity("Monster", entity.Vector3{})
-	//}
+}
+
+func (space *MySpace) ResetScene() {
+	for e := range space.Entities {
+		if e.TypeName == "Player" {
+			if e.I.(*Player).Attrs.GetBool("alive") {
+				return
+			}
+		}
+	}
+
+	for e := range space.Entities {
+		if e.TypeName == "Player" {
+			p := e.I.(*Player)
+			p.ResetAttr()
+			p.CallAllClients("ResetCoord", p.Position.X, p.Position.Y, p.Position.Z)
+		}
+	}
+	for e := range space.Entities {
+		if e.TypeName == "Monster" {
+			e.I.(*Monster).Destroy()
+		}
+	}
+	space.SummonMonsters()
 }
 
 // OnEntityEnterSpace is called when entity enters space

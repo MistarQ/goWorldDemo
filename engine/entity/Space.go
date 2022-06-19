@@ -165,8 +165,8 @@ func (space *Space) IsNil() bool {
 }
 
 // CreateEntity creates a new local entity in this space
-func (space *Space) CreateEntity(typeName string, pos Vector3) {
-	createEntity(typeName, space, pos, "", nil)
+func (space *Space) CreateEntity(typeName string, pos Vector3) (entity *Entity) {
+	return createEntity(typeName, space, pos, "", nil)
 }
 
 // LoadEntity loads a entity of specified entityID to the space

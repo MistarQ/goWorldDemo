@@ -22,4 +22,5 @@ type Skill struct {
 	startTIme    time.Time
 	durationTime time.Duration
 	target       *entity.Entity
+	radius       entity.Coord
 }

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"github.com/xiaonanln/goworld"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
-	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
 	"time"
 )
 
@@ -18,16 +16,13 @@ type Monster struct {
 	attackCD       time.Duration
 	lastAttackTime time.Time
 
-	CastCD       time.Duration
-	CastRadius   entity.Coord
-	lastCastTime time.Time
-	isCasting    bool
-
-	skillChan chan *Skill
+	isCasting bool
 
 	buffList []*Buff
 
 	battleStarted bool
+
+	radius int64
 }
 
 func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -42,7 +37,6 @@ func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
 
 func (monster *Monster) OnCreated() {
 	monster.Attrs.SetDefaultInt("radius", 3)
-	monster.skillChan = make(chan *Skill, 5)
 	gwlog.Infof("monster created", monster)
 }
 
@@ -57,12 +51,8 @@ func (monster *Monster) setDefaultAttrs() {
 	monster.Attrs.SetDefaultInt("hpmax", 100)
 	monster.Attrs.SetDefaultInt("hp", 100)
 	monster.Attrs.SetDefaultStr("action", "idle")
-
+	monster.Attrs.SetDefaultInt("radius", 3)
 	monster.attackCD = time.Second
-	monster.lastAttackTime = time.Now()
-
-	monster.CastCD = 10 * time.Second
-	monster.CastRadius = 3
 	monster.lastAttackTime = time.Now()
 }
 
@@ -85,7 +75,7 @@ func (monster *Monster) AI() {
 		}
 	}
 
-	if !monster.battleStarted && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
+	if !monster.battleStarted && nearestPlayer != nil && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
 		monster.startBattle()
 	}
 
@@ -117,12 +107,6 @@ func (monster *Monster) Tick() {
 	if monster.isCasting {
 		return
 	}
-
-	//if !now.Before(monster.lastCastTime.Add(monster.CastCD)) {
-	//	monster.cast(monster.Position)
-	//	monster.lastCastTime = now
-	//	return
-	//}
 
 	if monster.attackingTarget != nil && monster.IsInterestedIn(monster.attackingTarget) {
 		if !now.Before(monster.lastAttackTime.Add(monster.attackCD)) {
@@ -185,18 +169,6 @@ func (monster *Monster) Attacking(player *entity.Entity) {
 	monster.Attrs.SetStr("action", "move")
 }
 
-func (monster *Monster) cast(position goworld.Vector3) {
-	monster.CallAllClients("DisplayCast", monster.ID)
-	c := &Skill{
-		name:         "cast",
-		Position:     position,
-		skillType:    0,
-		delayTime:    3 * time.Second,
-		startTIme:    time.Now(),
-		durationTime: 0}
-	monster.skillChan <- c
-}
-
 func (monster *Monster) attack(player *Player) {
 	monster.CallAllClients("DisplayAttack", player.ID)
 
@@ -237,7 +209,6 @@ func (monster *Monster) startBattle() {
 	monster.AddTimer(time.Millisecond*30, "Tick")
 	// 计算技能
 	go monster.skillTimeline()
-	go monster.skillManage()
 }
 
 func (monster *Monster) skillTimeline() {
@@ -252,7 +223,7 @@ func (monster *Monster) skillTimeline() {
 		delayTime:    0,
 		startTIme:    time.Now(),
 		durationTime: 0}
-	monster.skillChan <- s0
+	go monster.calcSkill(s0)
 	time.Sleep(10 * time.Second)
 
 	s1 := &Skill{
@@ -262,8 +233,9 @@ func (monster *Monster) skillTimeline() {
 		castTime:     3 * time.Second,
 		delayTime:    0,
 		startTIme:    time.Now(),
-		durationTime: 0}
-	monster.skillChan <- s1
+		durationTime: 0,
+		radius:       3}
+	go monster.calcSkill(s1)
 	time.Sleep(10 * time.Second)
 
 	s2 := &Skill{
@@ -274,24 +246,10 @@ func (monster *Monster) skillTimeline() {
 		delayTime:    0,
 		startTIme:    time.Now(),
 		durationTime: 0,
+		radius:       3,
 		target:       monster.attackingTarget}
-	monster.skillChan <- s2
+	go monster.calcSkill(s2)
 
-}
-
-func (monster *Monster) skillManage() {
-	defer func() {
-		if err := recover(); err != nil {
-
-			gwlog.Fatalf("skillManage", err, utils.PrintStackTrace(err))
-		}
-	}()
-	for {
-		select {
-		case skill := <-monster.skillChan:
-			go monster.calcSkill(skill)
-		}
-	}
 }
 
 func (monster *Monster) calcSkill(skill *Skill) {
@@ -341,7 +299,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 				continue
 			}
 			player := p.I.(*Player)
-			if player.Position.DistanceTo2D(skill.Position) > monster.CastRadius {
+			if player.Position.DistanceTo2D(skill.Position) > skill.radius {
 				continue
 			}
 			player.TakeDamage(0)
@@ -359,12 +317,11 @@ func (monster *Monster) castSkill(skill *Skill) {
 				continue
 			}
 			player := p.I.(*Player)
-			if player.Position.DistanceTo2D(target.Position) > monster.CastRadius {
+			if player.Position.DistanceTo2D(target.Position) > skill.radius {
 				continue
 			}
 			player.TakeDamage(0)
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	}
-
 }

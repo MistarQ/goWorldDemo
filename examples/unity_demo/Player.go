@@ -29,6 +29,7 @@ func (a *Player) DescribeEntityType(desc *entity.EntityTypeDesc) {
 	desc.DefineAttr("atk", "AllClients")
 	desc.DefineAttr("crit", "AllClients")
 	desc.DefineAttr("critIndex", "AllClients")
+	desc.DefineAttr("alive", "AllClients")
 }
 
 // OnCreated 在Player对象创建后被调用
@@ -43,7 +44,6 @@ func (a *Player) OnCreated() {
 func (a *Player) setDefaultAttrs() {
 	// 应该从account service 获取
 	a.Attrs.SetDefaultInt("spaceKind", 1)
-	a.Attrs.SetDefaultStr("name", "noname")
 	a.Attrs.SetDefaultInt("lv", 1)
 	a.Attrs.SetDefaultInt("hp", 100)
 	a.Attrs.SetDefaultInt("hpmax", 100)
@@ -52,6 +52,27 @@ func (a *Player) setDefaultAttrs() {
 	a.Attrs.SetDefaultInt("atk", 30)
 	a.Attrs.SetDefaultInt("crit", 10)
 	a.Attrs.SetDefaultInt("critIndex", 2)
+	a.Attrs.SetBool("alive", true)
+	a.Position.X = 0
+	a.Position.Y = 0
+	a.Position.Z = -10
+	a.SetClientSyncing(true)
+}
+
+func (a *Player) ResetAttr() {
+	a.Attrs.SetInt("spaceKind", 1)
+	a.Attrs.SetInt("lv", 1)
+	a.Attrs.SetInt("hp", 100)
+	a.Attrs.SetInt("hpmax", 100)
+	a.Attrs.SetStr("action", "idle")
+	a.Attrs.SetInt("attackRange", 5)
+	a.Attrs.SetInt("atk", 30)
+	a.Attrs.SetInt("crit", 10)
+	a.Attrs.SetInt("critIndex", 2)
+	a.Attrs.SetBool("alive", true)
+	a.Position.X = 0
+	a.Position.Y = 0
+	a.Position.Z = -10
 	a.SetClientSyncing(true)
 }
 
@@ -135,7 +156,18 @@ func (a *Player) CalcDmg(monster *Monster) (dmg int64, isCrit bool) {
 }
 
 func (player *Player) TakeDamage(damage int64) {
+
+	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
+		err := recover() //recover是内置函数，可以捕获到异常
+		if err != nil {  //说明有错误
+			gwlog.Errorf("take damage error=", err)
+			//当然这里可以把错误的详细位置发送给开发人员
+			//send email to admin
+		}
+	}()
+
 	hp := player.GetInt("hp")
+
 	if hp <= 0 {
 		return
 	}
@@ -144,14 +176,16 @@ func (player *Player) TakeDamage(damage int64) {
 	if hp < 0 {
 		hp = 0
 	}
-
+	gwlog.Infof("debug", player.Attrs.String())
 	player.Attrs.SetInt("hp", hp)
-
+	gwlog.Infof("debug", player.Attrs.String())
 	if hp <= 0 {
 		// now player dead ...
 		player.Attrs.SetStr("action", "death")
+		player.Attrs.SetBool("alive", false)
 		player.SetClientSyncing(false)
 	}
+
 }
 
 //func (a *Player) randomPosition() entity.Vector3 {
