@@ -16,12 +16,16 @@ func main() {
 
 	goworld.RegisterService("OnlineService", &OnlineService{}, 3)
 	goworld.RegisterService("SpaceService", &SpaceService{}, 3)
-	// 注册Account类型
+
+	// account
 	goworld.RegisterEntity("Account", &Account{})
-	// 注册Monster类型
-	goworld.RegisterEntity("Monster", &Monster{})
-	// 注册Avatar类型，并定义属性
+	// player
 	goworld.RegisterEntity("Player", &Player{})
+	// monster
+	goworld.RegisterEntity("Monster", &Monster{})
+	// black hole
+	goworld.RegisterEntity("BlackHole", &BlackHole{})
+
 	// 运行游戏服务器
 	goworld.Run()
 }

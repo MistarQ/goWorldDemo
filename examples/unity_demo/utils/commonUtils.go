@@ -27,3 +27,24 @@ func PrintStackTrace(err interface{}) string {
 	}
 	return buf.String()
 }
+
+func Normalize(x float32, z float32) (normalizedX float32, normalizedZ float32) {
+	if x == 0 {
+		if z > 0 {
+			return 0, 1
+		} else {
+			return 0, -1
+		}
+
+	} else if z == 0 {
+		if x > 0 {
+			return 1, 0
+		} else {
+			return -1, 0
+		}
+	} else {
+		idx := float32(math.Sqrt(float64(x*x + z*z)))
+		return x / idx, z / idx
+	}
+
+}

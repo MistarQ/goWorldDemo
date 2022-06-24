@@ -11,6 +11,7 @@ const (
 	IRON            = 2
 	MOON            = 3
 	DeathPenaltyAOE = 4
+	LineBlackHole   = 5
 )
 
 type Skill struct {
@@ -21,6 +22,6 @@ type Skill struct {
 	delayTime    time.Duration
 	startTIme    time.Time
 	durationTime time.Duration
-	target       *entity.Entity
+	targets      []*entity.Entity
 	radius       entity.Coord
 }

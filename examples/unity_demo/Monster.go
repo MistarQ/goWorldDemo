@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
+	"math"
 	"time"
 )
 
@@ -11,6 +13,7 @@ type Monster struct {
 	entity.Entity   // Entity type should always inherit entity.Entity
 	movingToTarget  *entity.Entity
 	attackingTarget *entity.Entity
+	castingTarget   *entity.Entity
 	lastTickTime    time.Time
 
 	attackCD       time.Duration
@@ -150,7 +153,7 @@ func (monster *Monster) Idling() {
 
 func (monster *Monster) MovingTo(player *entity.Entity) {
 	if monster.movingToTarget == player {
-		// moving target not changed
+		// moving targets not changed
 		return
 	}
 
@@ -247,9 +250,24 @@ func (monster *Monster) skillTimeline() {
 		startTIme:    time.Now(),
 		durationTime: 0,
 		radius:       3,
-		target:       monster.attackingTarget}
+		targets:      []*entity.Entity{monster.attackingTarget}}
 	go monster.calcSkill(s2)
+	time.Sleep(10 * time.Second)
 
+	go monster.lineDeathPenalty()
+	time.Sleep(10 * time.Second)
+
+	s3 := &Skill{
+		name:         "Hyper Dimensional Slash",
+		Position:     monster.Position,
+		skillType:    LineBlackHole,
+		castTime:     3 * time.Second,
+		delayTime:    0,
+		startTIme:    time.Now(),
+		durationTime: 0,
+		targets:      []*entity.Entity{monster.attackingTarget},
+	}
+	go monster.castSkill(s3)
 }
 
 func (monster *Monster) calcSkill(skill *Skill) {
@@ -306,22 +324,80 @@ func (monster *Monster) castSkill(skill *Skill) {
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	case DeathPenaltyAOE:
-		if skill.target == nil {
+		if skill.targets == nil {
 			return
 		}
-		target := skill.target.I.(*Player)
-		target.TakeDamage(0)
-		target.CallAllClients("DisplayAttacked", target.ID)
-		for p, _ := range players {
-			if p.TypeName != "Player" {
-				continue
+
+		for _, e := range skill.targets {
+			target := e.I.(*Player)
+			target.TakeDamage(0)
+			target.CallAllClients("DisplayAttacked", target.ID)
+			for p, _ := range players {
+				if p.TypeName != "Player" {
+					continue
+				}
+				player := p.I.(*Player)
+				if player.Position.DistanceTo2D(target.Position) > skill.radius {
+					continue
+				}
+				player.TakeDamage(0)
+				p.CallAllClients("DisplayAttacked", p.ID)
 			}
-			player := p.I.(*Player)
-			if player.Position.DistanceTo2D(target.Position) > skill.radius {
-				continue
+		}
+	case LineBlackHole:
+		for _, e := range skill.targets {
+			monster.CallAllClients("DisPlayLine", monster.Position.X, monster.Position.Z, e.Position.X, e.Position.Z)
+
+			X := float32(e.Position.X - monster.Position.X)
+			Z := float32(e.Position.Z - monster.Position.Z)
+
+			vecX, vecZ := utils.Normalize(X, Z)
+			for X < 100 && X > -100 && Z < 100 && Z > -100 {
+				X += vecX
+				Z += vecZ
 			}
-			player.TakeDamage(0)
-			p.CallAllClients("DisplayAttacked", p.ID)
+			monster.Space.CreateEntity("BlackHole", entity.Vector3{X: entity.Coord(X), Z: entity.Coord(Z)})
+			target := e.I.(*Player)
+			target.TakeDamage(0)
+			target.CallAllClients("DisPlayAttacked", target.ID)
 		}
 	}
+}
+
+func (monster *Monster) lineDeathPenalty() {
+	monster.castingTarget = monster.attackingTarget
+	ticker := time.NewTicker(300 * time.Millisecond)
+	count := 0
+	defer func() {
+		ticker.Stop()
+	}()
+
+	for {
+		select {
+		case <-ticker.C:
+
+			monster.isCasting = true
+			if monster.castingTarget != nil {
+				monster.FaceTo(monster.castingTarget)
+			}
+			oldDistance := monster.DistanceTo(monster.castingTarget)
+			oldYaw := monster.GetYaw()
+
+			for e := range monster.InterestedIn {
+				if e.TypeName != "Player" {
+					continue
+				}
+				yaw := e.Position.Sub(monster.Position).DirToYaw()
+				if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) < oldDistance {
+					monster.castingTarget = e
+				}
+			}
+
+			count += 1
+			if count >= 10 {
+				return
+			}
+		}
+	}
+
 }
