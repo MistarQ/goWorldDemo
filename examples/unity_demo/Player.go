@@ -176,9 +176,9 @@ func (player *Player) TakeDamage(damage int64) {
 	if hp < 0 {
 		hp = 0
 	}
-	gwlog.Infof("debug", player.Attrs.String())
+	gwlog.Infof("player take damage", player.Attrs.String())
 	player.Attrs.SetInt("hp", hp)
-	gwlog.Infof("debug", player.Attrs.String())
+	gwlog.Infof("player take damage", player.Attrs.String())
 	if hp <= 0 {
 		// now player dead ...
 		player.Attrs.SetStr("action", "death")

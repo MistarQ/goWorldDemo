@@ -12,10 +12,12 @@ const (
 	MOON            = 3
 	DeathPenaltyAOE = 4
 	LineBlackHole   = 5
+	Apportion       = 6
 )
 
 type Skill struct {
 	name         string
+	power        int
 	Position     goworld.Vector3
 	skillType    int32
 	castTime     time.Duration

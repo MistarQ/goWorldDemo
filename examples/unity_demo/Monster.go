@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
 	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
 	"math"
+	"runtime"
 	"time"
 )
 
@@ -215,6 +217,7 @@ func (monster *Monster) startBattle() {
 }
 
 func (monster *Monster) skillTimeline() {
+
 	// 理论上是从配置文件种读取时间轴配置
 	time.Sleep(10 * time.Second)
 
@@ -242,15 +245,13 @@ func (monster *Monster) skillTimeline() {
 	time.Sleep(10 * time.Second)
 
 	s2 := &Skill{
-		name:         "HEAVEN BLAZE",
-		Position:     monster.Position,
-		skillType:    DeathPenaltyAOE,
-		castTime:     3 * time.Second,
-		delayTime:    0,
-		startTIme:    time.Now(),
-		durationTime: 0,
-		radius:       3,
-		targets:      []*entity.Entity{monster.attackingTarget}}
+		name:      "Heaven Blaze",
+		skillType: Apportion,
+		castTime:  3 * time.Second,
+		startTIme: time.Now(),
+		radius:    3,
+		power:     0,
+		targets:   []*entity.Entity{monster.attackingTarget}}
 	go monster.calcSkill(s2)
 	time.Sleep(10 * time.Second)
 
@@ -267,11 +268,12 @@ func (monster *Monster) skillTimeline() {
 		durationTime: 0,
 		targets:      []*entity.Entity{monster.attackingTarget},
 	}
-	go monster.castSkill(s3)
+	go monster.calcSkill(s3)
 }
 
 func (monster *Monster) calcSkill(skill *Skill) {
 	if skill.castTime > 0 {
+		gwlog.Debugf("DisplayCastBar", skill)
 		monster.CallAllClients("DisplayCastBar", float32(skill.castTime.Seconds()), skill.skillType, skill.name, monster.ID)
 		monster.isCasting = true
 		monster.Attrs.SetStr("action", "cast")
@@ -299,6 +301,21 @@ func (monster *Monster) durationSkill(skill *Skill) {
 }
 
 func (monster *Monster) castSkill(skill *Skill) {
+
+	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
+		err := recover() //recover是内置函数，可以捕获到异常
+		if err != nil {  //说明有错误
+			buf := make([]byte, 2048)
+			n := runtime.Stack(buf, false)
+			stackInfo := fmt.Sprintf("%s", buf[:n])
+			gwlog.Errorf("take damage error=", stackInfo)
+			//当然这里可以把错误的详细位置发送给开发人员
+			//send email to admin
+		}
+	}()
+
+	gwlog.Infof("cast skill", skill)
+
 	space := monster.Space
 	players := space.Entities
 	switch skill.skillType {
@@ -311,17 +328,19 @@ func (monster *Monster) castSkill(skill *Skill) {
 			player.TakeDamage(0)
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
-	case IRON:
+	case MOON:
+
 		for p, _ := range players {
 			if p.TypeName != "Player" {
 				continue
 			}
 			player := p.I.(*Player)
-			if player.Position.DistanceTo2D(skill.Position) > skill.radius {
+			gwlog.Debugf("skill pos: %s", skill.Position.String(), ", player pos: %s", player.Position.String())
+			if player.Position.DistanceTo2D(skill.Position) < skill.radius {
 				continue
 			}
 			player.TakeDamage(0)
-			p.CallAllClients("DisplayAttacked", p.ID)
+			player.CallAllClients("DisplayAttacked", player.ID)
 		}
 	case DeathPenaltyAOE:
 		if skill.targets == nil {
@@ -341,11 +360,12 @@ func (monster *Monster) castSkill(skill *Skill) {
 					continue
 				}
 				player.TakeDamage(0)
-				p.CallAllClients("DisplayAttacked", p.ID)
+				player.CallAllClients("DisplayAttacked", player.ID)
 			}
 		}
 	case LineBlackHole:
 		for _, e := range skill.targets {
+			gwlog.Debugf("line black hole", e.Attrs)
 			monster.CallAllClients("DisPlayLine", monster.Position.X, monster.Position.Z, e.Position.X, e.Position.Z)
 
 			X := float32(e.Position.X - monster.Position.X)
@@ -356,10 +376,41 @@ func (monster *Monster) castSkill(skill *Skill) {
 				X += vecX
 				Z += vecZ
 			}
-			monster.Space.CreateEntity("BlackHole", entity.Vector3{X: entity.Coord(X), Z: entity.Coord(Z)})
-			target := e.I.(*Player)
-			target.TakeDamage(0)
-			target.CallAllClients("DisPlayAttacked", target.ID)
+			gwlog.Infof("black hole pos, %f, %f", X, Z)
+			// monster.Space.CreateEntity("BlackHole", entity.Vector3{X: entity.Coord(X), Z: entity.Coord(Z)})
+			player := e.I.(*Player)
+			player.TakeDamage(0)
+			player.CallAllClients("DisplayAttacked", player.ID)
+			gwlog.Infof("DisPlayLineAttacked %s", player.ID)
+		}
+	case Apportion:
+		for _, e := range skill.targets {
+			var playerList []*Player
+
+			if e.TypeName != "Player" {
+				continue
+			}
+			playerList = append(playerList, e.I.(*Player))
+			for otherE := range monster.Space.Entities {
+				if otherE.TypeName != "Player" {
+					continue
+				}
+				if otherE.ID == e.ID {
+					continue
+				}
+				if otherE.Position.DistanceTo2D(e.Position) > skill.radius {
+					continue
+				}
+				otherP := e.I.(*Player)
+				playerList = append(playerList, otherP)
+			}
+			if playerList != nil {
+				skill.power /= len(playerList)
+				for _, p := range playerList {
+					p.TakeDamage(int64(skill.power))
+					p.CallAllClients("DisplayAttacked", p.ID)
+				}
+			}
 		}
 	}
 }
@@ -369,13 +420,14 @@ func (monster *Monster) lineDeathPenalty() {
 	ticker := time.NewTicker(300 * time.Millisecond)
 	count := 0
 	defer func() {
+		monster.isCasting = false
 		ticker.Stop()
 	}()
 
 	for {
 		select {
 		case <-ticker.C:
-
+			gwlog.Debugf("monster cast line", monster.castingTarget)
 			monster.isCasting = true
 			if monster.castingTarget != nil {
 				monster.FaceTo(monster.castingTarget)
@@ -388,13 +440,35 @@ func (monster *Monster) lineDeathPenalty() {
 					continue
 				}
 				yaw := e.Position.Sub(monster.Position).DirToYaw()
-				if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) < oldDistance {
+				if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) <= oldDistance {
 					monster.castingTarget = e
+					gwlog.Debugf("monster cast target %s", monster.castingTarget.Attrs.GetStr("name"))
 				}
 			}
 
 			count += 1
 			if count >= 10 {
+				if monster.castingTarget != nil {
+					gwlog.Debugf("monster cast line finished", monster.castingTarget)
+					player := monster.castingTarget.I.(*Player)
+					player.TakeDamage(0)
+					player.CallAllClients("DisplayAttacked", player.ID)
+
+					for e := range monster.Space.Entities {
+						if e.TypeName != "Player" {
+							continue
+						}
+						if e.ID == player.ID {
+							continue
+						}
+						p := e.I.(*Player)
+						if p.Position.DistanceTo(player.Position) > 3 {
+							continue
+						}
+						p.TakeDamage(0)
+						p.CallAllClients("DisplayAttacked", p.ID)
+					}
+				}
 				return
 			}
 		}
