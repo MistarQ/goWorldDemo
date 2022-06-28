@@ -215,6 +215,9 @@ func (monster *Monster) startBattle() {
 }
 
 func (monster *Monster) skillTimeline() {
+	if monster.IsDestroyed() {
+		return
+	}
 	// 理论上是从配置文件种读取时间轴配置
 	time.Sleep(10 * time.Second)
 
@@ -271,6 +274,9 @@ func (monster *Monster) skillTimeline() {
 }
 
 func (monster *Monster) calcSkill(skill *Skill) {
+	if monster.IsDestroyed() {
+		return
+	}
 	if skill.castTime > 0 {
 		monster.CallAllClients("DisplayCastBar", float32(skill.castTime.Seconds()), skill.skillType, skill.name, monster.ID)
 		monster.isCasting = true
@@ -299,6 +305,9 @@ func (monster *Monster) durationSkill(skill *Skill) {
 }
 
 func (monster *Monster) castSkill(skill *Skill) {
+	if monster.IsDestroyed() {
+		return
+	}
 	space := monster.Space
 	players := space.Entities
 	switch skill.skillType {
@@ -365,6 +374,9 @@ func (monster *Monster) castSkill(skill *Skill) {
 }
 
 func (monster *Monster) lineDeathPenalty() {
+	if monster.IsDestroyed() {
+		return
+	}
 	monster.castingTarget = monster.attackingTarget
 	ticker := time.NewTicker(300 * time.Millisecond)
 	count := 0
@@ -375,7 +387,9 @@ func (monster *Monster) lineDeathPenalty() {
 	for {
 		select {
 		case <-ticker.C:
-
+			if monster.IsDestroyed() {
+				return
+			}
 			monster.isCasting = true
 			if monster.castingTarget != nil {
 				monster.FaceTo(monster.castingTarget)
