@@ -305,6 +305,15 @@ func (monster *Monster) durationSkill(skill *Skill) {
 }
 
 func (monster *Monster) castSkill(skill *Skill) {
+	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
+		err := recover() //recover是内置函数，可以捕获到异常
+		if err != nil {  //说明有错误
+			gwlog.Errorf("cast skill error=", err)
+			//当然这里可以把错误的详细位置发送给开发人员
+			//send email to admin
+		}
+	}()
+
 	if monster.IsDestroyed() {
 		return
 	}
@@ -380,8 +389,15 @@ func (monster *Monster) lineDeathPenalty() {
 	monster.castingTarget = monster.attackingTarget
 	ticker := time.NewTicker(300 * time.Millisecond)
 	count := 0
-	defer func() {
+
+	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
 		ticker.Stop()
+		err := recover() //recover是内置函数，可以捕获到异常
+		if err != nil {  //说明有错误
+			gwlog.Errorf("line death penalty error=", err)
+			//当然这里可以把错误的详细位置发送给开发人员
+			//send email to admin
+		}
 	}()
 
 	for {
