@@ -48,6 +48,17 @@ func (p Vector3) Mul(m Coord) Vector3 {
 	return Vector3{p.X * m, p.Y * m, p.Z * m}
 }
 
+// ScalarProduct calculates Vector3 * Vector3 p * o
+func (p Vector3) ScalarProduct(o Vector3) float32 {
+	return float32(p.X*o.X + p.Y*o.Y + p.Z*o.Z)
+}
+
+// VectorProduct calculates vec x vec
+func (p Vector3) VectorProduct(o Vector3) float32 {
+	// return float32(p.X*o.Z-p.Z*o.X)
+	return float32(p.Y*o.Z - o.Y*p.Z - (p.X*o.Z - o.X*p.Z) + p.X*o.Y - o.X*p.Y)
+}
+
 // DirToYaw convert direction represented by Vector3 to Yaw
 func (dir Vector3) DirToYaw() Yaw {
 	dir.Normalize()
