@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
 	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
@@ -272,6 +273,15 @@ func (monster *Monster) skillTimeline() {
 }
 
 func (monster *Monster) calcSkill(skill *Skill) {
+	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
+		err := recover() //recover是内置函数，可以捕获到异常
+		if err != nil {  //说明有错误
+			gwlog.Errorf("calc skill error=", err)
+			//当然这里可以把错误的详细位置发送给开发人员
+			//send email to admin
+		}
+	}()
+
 	if monster.IsDestroyed() {
 		return
 	}
@@ -317,30 +327,30 @@ func (monster *Monster) castSkill(skill *Skill) {
 		return
 	}
 	space := monster.Space
-	players := space.Entities
+
+	var players []*Player
+	for p, _ := range space.Entities {
+		if p.TypeName == "Player" {
+			player := p.I.(*Player)
+			players = append(players, player)
+		}
+	}
+
 	switch skill.skillType {
 	case AOE:
-		for p, _ := range players {
-			if p.TypeName != "Player" {
-				continue
-			}
-			player := p.I.(*Player)
-			player.TakeDamage(0)
+		for _, p := range players {
+			p.TakeDamage(0)
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	case MOON:
 
-		for p, _ := range players {
-			if p.TypeName != "Player" {
+		for _, p := range players {
+			gwlog.Debugf("skill pos: %s", skill.Position.String(), ", player pos: %s", p.Position.String())
+			if p.Position.DistanceTo2D(skill.Position) < skill.radius {
 				continue
 			}
-			player := p.I.(*Player)
-			gwlog.Debugf("skill pos: %s", skill.Position.String(), ", player pos: %s", player.Position.String())
-			if player.Position.DistanceTo2D(skill.Position) < skill.radius {
-				continue
-			}
-			player.TakeDamage(0)
-			player.CallAllClients("DisplayAttacked", player.ID)
+			p.TakeDamage(0)
+			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	case DeathPenaltyAOE:
 		if skill.targets == nil {
@@ -351,7 +361,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 			target := e.I.(*Player)
 			target.TakeDamage(0)
 			target.CallAllClients("DisplayAttacked", target.ID)
-			for p, _ := range players {
+			for _, p := range players {
 				if p.TypeName != "Player" {
 					continue
 				}
@@ -379,10 +389,30 @@ func (monster *Monster) castSkill(skill *Skill) {
 			gwlog.Infof("black hole pos, %f, %f", X, Z)
 			// monster.Space.CreateEntity("BlackHole", entity.Vector3{X: entity.Coord(X), Z: entity.Coord(Z)})
 			player := e.I.(*Player)
-			player.TakeDamage(0)
-			player.CallAllClients("DisplayAttacked", player.ID)
+			//player.TakeDamage(0)
+			//player.CallAllClients("DisplayAttacked", player.ID)
+			gwlog.Infof("monster yaw %f", monster.GetYaw())
+			gwlog.Infof("dis yaw %f ", (player.Position.Sub(monster.Position)).DirToYaw())
+			// 计算矩形
+			pointList := calcMatrix(monster.Position, (player.Position.Sub(monster.Position)).DirToYaw(), 2, 10)
+
+			monster.CallAllClients("DisplayMatrix", pointList[0].X, pointList[0].Y, pointList[0].Z,
+				pointList[1].X, pointList[1].Y, pointList[1].Z,
+				pointList[2].X, pointList[2].Y, pointList[2].Z,
+				pointList[3].X, pointList[3].Y, pointList[3].Z)
+			gwlog.Infof("pointList", pointList)
+
+			for _, p := range players {
+				gwlog.Infof("position", p.Position)
+				if calcInMatrix(pointList, p.Position) {
+					p.TakeDamage(10)
+					p.CallAllClients("DisplayAttacked", p.ID)
+				}
+			}
+
 			gwlog.Infof("DisPlayLineAttacked %s", player.ID)
 		}
+
 	case Apportion:
 		for _, e := range skill.targets {
 			var playerList []*Player
@@ -495,7 +525,7 @@ func calcMatrix(vec entity.Vector3, yaw entity.Yaw, width float32, length float3
 	yaw = yaw * math.Pi / 180
 	width /= 2
 	// 单位向量
-	unitVec := entity.Vector3{X: entity.Coord(math.Cos(float64(yaw))), Z: entity.Coord(math.Sin(float64(yaw)))}
+	unitVec := entity.Vector3{X: entity.Coord(math.Sin(float64(yaw))), Z: entity.Coord(math.Cos(float64(yaw)))}
 	// 顺时针90°
 	unitVecP90 := entity.Vector3{X: unitVec.Z, Z: -unitVec.X}
 	// 逆时针90°
@@ -535,5 +565,4 @@ func calcInMatrix(pointList []entity.Vector3, point entity.Vector3) bool {
 	} else {
 		return false
 	}
-
 }

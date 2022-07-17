@@ -176,7 +176,7 @@ func (player *Player) TakeDamage(damage int64) {
 	if hp < 0 {
 		hp = 0
 	}
-	gwlog.Infof("player take damage", player.Attrs.String())
+	// gwlog.Infof("player take damage", player.Attrs.String())
 	player.Attrs.SetInt("hp", hp)
 	gwlog.Infof("player take damage", player.Attrs.String())
 	if hp <= 0 {
