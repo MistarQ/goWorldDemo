@@ -17,6 +17,7 @@ require (
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/shirou/gopsutil v2.19.11+incompatible
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
+	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect

@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
 	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
 	"math"
-	"runtime"
 	"time"
 )
 
@@ -217,7 +215,9 @@ func (monster *Monster) startBattle() {
 }
 
 func (monster *Monster) skillTimeline() {
-
+	if monster.IsDestroyed() {
+		return
+	}
 	// 理论上是从配置文件种读取时间轴配置
 	time.Sleep(10 * time.Second)
 
@@ -272,6 +272,9 @@ func (monster *Monster) skillTimeline() {
 }
 
 func (monster *Monster) calcSkill(skill *Skill) {
+	if monster.IsDestroyed() {
+		return
+	}
 	if skill.castTime > 0 {
 		gwlog.Debugf("DisplayCastBar", skill)
 		monster.CallAllClients("DisplayCastBar", float32(skill.castTime.Seconds()), skill.skillType, skill.name, monster.ID)
@@ -301,21 +304,18 @@ func (monster *Monster) durationSkill(skill *Skill) {
 }
 
 func (monster *Monster) castSkill(skill *Skill) {
-
 	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
 		err := recover() //recover是内置函数，可以捕获到异常
 		if err != nil {  //说明有错误
-			buf := make([]byte, 2048)
-			n := runtime.Stack(buf, false)
-			stackInfo := fmt.Sprintf("%s", buf[:n])
-			gwlog.Errorf("take damage error=", stackInfo)
+			gwlog.Errorf("cast skill error=", err)
 			//当然这里可以把错误的详细位置发送给开发人员
 			//send email to admin
 		}
 	}()
 
-	gwlog.Infof("cast skill", skill)
-
+	if monster.IsDestroyed() {
+		return
+	}
 	space := monster.Space
 	players := space.Entities
 	switch skill.skillType {
@@ -416,17 +416,30 @@ func (monster *Monster) castSkill(skill *Skill) {
 }
 
 func (monster *Monster) lineDeathPenalty() {
+	if monster.IsDestroyed() {
+		return
+	}
 	monster.castingTarget = monster.attackingTarget
 	ticker := time.NewTicker(300 * time.Millisecond)
 	count := 0
-	defer func() {
+
+	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
 		monster.isCasting = false
 		ticker.Stop()
+		err := recover() //recover是内置函数，可以捕获到异常
+		if err != nil {  //说明有错误
+			gwlog.Errorf("line death penalty error=", err)
+			//当然这里可以把错误的详细位置发送给开发人员
+			//send email to admin
+		}
 	}()
 
 	for {
 		select {
 		case <-ticker.C:
+			if monster.IsDestroyed() {
+				return
+			}
 			gwlog.Debugf("monster cast line", monster.castingTarget)
 			monster.isCasting = true
 			if monster.castingTarget != nil {
@@ -472,6 +485,55 @@ func (monster *Monster) lineDeathPenalty() {
 				return
 			}
 		}
+	}
+
+}
+
+func calcMatrix(vec entity.Vector3, yaw entity.Yaw, width float32, length float32) (pointList []entity.Vector3) {
+
+	// 角动量
+	yaw = yaw * math.Pi / 180
+	width /= 2
+	// 单位向量
+	unitVec := entity.Vector3{X: entity.Coord(math.Cos(float64(yaw))), Z: entity.Coord(math.Sin(float64(yaw)))}
+	// 顺时针90°
+	unitVecP90 := entity.Vector3{X: unitVec.Z, Z: -unitVec.X}
+	// 逆时针90°
+	// UnitVecM90 := entity.Vector3{X: -unitVec.Z, Z: unitVec.X}
+	l := entity.Vector3{X: unitVec.X * entity.Coord(length), Z: unitVec.Z * entity.Coord(length)}
+	w := entity.Vector3{X: unitVecP90.X * entity.Coord(width), Z: unitVecP90.Z * entity.Coord(width)}
+
+	pointList = append(pointList, vec.Add(l).Add(w))
+	pointList = append(pointList, vec.Add(w))
+	pointList = append(pointList, vec.Sub(w))
+	pointList = append(pointList, vec.Add(l).Sub(w))
+
+	fmt.Println(pointList)
+	gwlog.Infof("calcMatrix, vec %s, yaw %f, width %f, length %f, pointList %s", vec, yaw, width, length, pointList)
+	return pointList
+}
+
+func calcInMatrix(pointList []entity.Vector3, point entity.Vector3) bool {
+	vec1 := pointList[1].Sub(pointList[0]) // AB
+	vec2 := pointList[2].Sub(pointList[1]) // BC
+	vec3 := pointList[3].Sub(pointList[2]) // CD
+	vec4 := pointList[0].Sub(pointList[3]) // DA
+
+	pointVec1 := point.Sub(pointList[0]) // OA
+	pointVec2 := point.Sub(pointList[1]) // OB
+	pointVec3 := point.Sub(pointList[2]) // OC
+	pointVec4 := point.Sub(pointList[3]) // OD
+
+	result1 := math.Trunc(float64(vec1.VectorProduct(pointVec1)*100)) / 100
+	result2 := math.Trunc(float64(vec2.VectorProduct(pointVec2)*100)) / 100
+	result3 := math.Trunc(float64(vec3.VectorProduct(pointVec3)*100)) / 100
+	result4 := math.Trunc(float64(vec4.VectorProduct(pointVec4)*100)) / 100
+
+	if (result1 >= 0 && result2 >= 0 && result3 >= 0 && result4 >= 0) ||
+		(result1 <= 0 && result2 <= 0 && result3 <= 0 && result4 <= 0) {
+		return true
+	} else {
+		return false
 	}
 
 }
