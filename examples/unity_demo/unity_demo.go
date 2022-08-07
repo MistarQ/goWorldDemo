@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/xiaonanln/goworld"
+	"github.com/xiaonanln/goworld/engine/gwlog"
 )
 
 var (
@@ -12,6 +13,13 @@ var (
 )
 
 func main() {
+	defer func() {
+		err := recover()
+		if err != nil {
+			gwlog.Errorf("system crash", err)
+		}
+	}()
+
 	goworld.RegisterSpace(&MySpace{}) // 注册自定义的Space类型
 
 	goworld.RegisterService("OnlineService", &OnlineService{}, 3)
@@ -28,4 +36,5 @@ func main() {
 
 	// 运行游戏服务器
 	goworld.Run()
+
 }

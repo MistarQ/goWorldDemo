@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
 	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
@@ -14,8 +13,8 @@ type Monster struct {
 	entity.Entity   // Entity type should always inherit entity.Entity
 	movingToTarget  *entity.Entity
 	attackingTarget *entity.Entity
-	castingTarget   *entity.Entity
-	lastTickTime    time.Time
+	// castingTarget   *entity.Entity
+	lastTickTime time.Time
 
 	attackCD       time.Duration
 	lastAttackTime time.Time
@@ -24,9 +23,13 @@ type Monster struct {
 
 	buffList []*Buff
 
-	battleStarted bool
-
 	radius int64
+
+	BattleStarted bool
+
+	tick int
+
+	castSKill *Skill
 }
 
 func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
@@ -41,11 +44,11 @@ func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
 
 func (monster *Monster) OnCreated() {
 	monster.Attrs.SetDefaultInt("radius", 3)
+	monster.setDefaultAttrs()
 	gwlog.Infof("monster created", monster)
 }
 
 func (monster *Monster) OnEnterSpace() {
-	monster.setDefaultAttrs()
 	monster.AddTimer(time.Millisecond*100, "AI")
 }
 
@@ -79,16 +82,22 @@ func (monster *Monster) AI() {
 		}
 	}
 
-	if !monster.battleStarted && nearestPlayer != nil && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
+	if !monster.BattleStarted && nearestPlayer != nil && nearestPlayer.TypeName == "Player" && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
+		gwlog.Infof("start battle ", monster.Position, nearestPlayer.Position)
 		monster.startBattle()
 	}
 
-	if !monster.battleStarted {
+	if !monster.BattleStarted {
 		return
 	}
 
 	if nearestPlayer == nil {
 		monster.Idling()
+		return
+	}
+
+	// 施法时无动作
+	if monster.isCasting {
 		return
 	}
 
@@ -100,10 +109,6 @@ func (monster *Monster) AI() {
 }
 
 func (monster *Monster) Tick() {
-
-	if !monster.battleStarted {
-		return
-	}
 
 	now := time.Now()
 
@@ -188,7 +193,7 @@ func (monster *Monster) GetDamage() int64 {
 }
 
 func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
-	if !monster.battleStarted {
+	if !monster.BattleStarted {
 		monster.startBattle()
 	}
 
@@ -208,118 +213,107 @@ func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
 }
 
 func (monster *Monster) startBattle() {
-	monster.battleStarted = true
+
+	monster.BattleStarted = true
 	monster.lastTickTime = time.Now()
 	monster.AddTimer(time.Millisecond*30, "Tick")
 	// 计算技能
-	go monster.skillTimeline()
+	monster.AddTimer(time.Second, "SkillTimeline")
 }
 
-func (monster *Monster) skillTimeline() {
-	if monster.IsDestroyed() {
-		return
-	}
+func (monster *Monster) SkillTimeline() {
 	// 理论上是从配置文件种读取时间轴配置
-	time.Sleep(10 * time.Second)
+	monster.tick += 1
 
-	s0 := &Skill{
-		name:         "Hollest of Holy",
-		Position:     monster.Position,
-		skillType:    AOE,
-		castTime:     3 * time.Second,
-		delayTime:    0,
-		startTIme:    time.Now(),
-		durationTime: 0}
-	go monster.calcSkill(s0)
-	time.Sleep(10 * time.Second)
+	gwlog.Infof("SkillTimeline, tick is", monster.tick, monster.Position)
 
-	s1 := &Skill{
-		name:         "Empty dimension",
-		Position:     monster.Position,
-		skillType:    MOON,
-		castTime:     3 * time.Second,
-		delayTime:    0,
-		startTIme:    time.Now(),
-		durationTime: 0,
-		radius:       3}
-	go monster.calcSkill(s1)
-	time.Sleep(10 * time.Second)
-
-	s2 := &Skill{
-		name:      "Heaven Blaze",
-		skillType: Apportion,
-		castTime:  3 * time.Second,
-		startTIme: time.Now(),
-		radius:    3,
-		power:     0,
-		targets:   []*entity.Entity{monster.attackingTarget}}
-	go monster.calcSkill(s2)
-	time.Sleep(10 * time.Second)
-
-	go monster.lineDeathPenalty()
-	time.Sleep(10 * time.Second)
-
-	s3 := &Skill{
-		name:         "Hyper Dimensional Slash",
-		Position:     monster.Position,
-		skillType:    LineBlackHole,
-		castTime:     3 * time.Second,
-		delayTime:    0,
-		startTIme:    time.Now(),
-		durationTime: 0,
-		targets:      []*entity.Entity{monster.attackingTarget},
-	}
-	go monster.calcSkill(s3)
-}
-
-func (monster *Monster) calcSkill(skill *Skill) {
-	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
-		err := recover() //recover是内置函数，可以捕获到异常
-		if err != nil {  //说明有错误
-			gwlog.Errorf("calc skill error=", err)
-			//当然这里可以把错误的详细位置发送给开发人员
-			//send email to admin
+	switch monster.tick {
+	case 20:
+		s0 := &Skill{
+			name:         "Hollest of Holy",
+			Position:     monster.Position,
+			skillType:    AOE,
+			castTime:     3 * time.Second,
+			delayTime:    0,
+			startTIme:    time.Now(),
+			durationTime: 0}
+		monster.castSKill = s0
+	case 30:
+		s1 := &Skill{
+			name:         "Empty dimension",
+			Position:     monster.Position,
+			skillType:    MOON,
+			castTime:     3 * time.Second,
+			delayTime:    0,
+			startTIme:    time.Now(),
+			durationTime: 0,
+			radius:       3}
+		monster.castSKill = s1
+	case 40:
+		s2 := &Skill{
+			name:      "Heaven Blaze",
+			skillType: Apportion,
+			castTime:  3 * time.Second,
+			startTIme: time.Now(),
+			radius:    3,
+			power:     0,
+			targets:   []*entity.Entity{monster.attackingTarget}}
+		monster.castSKill = s2
+	case 5:
+		s3 := &Skill{
+			name:         "接线",
+			skillType:    LineDeathPenalty,
+			Position:     monster.Position,
+			caster:       &monster.Entity,
+			startTIme:    time.Now(),
+			durationTime: 3 * time.Second,
+			power:        1,
+			targets:      []*entity.Entity{monster.attackingTarget},
 		}
-	}()
-
-	if monster.IsDestroyed() {
-		return
+		monster.castSKill = s3
+	case 50:
+		s4 := &Skill{
+			name:         "Hyper Dimensional Slash",
+			Position:     monster.Position,
+			skillType:    LineBlackHole,
+			castTime:     3 * time.Second,
+			delayTime:    0,
+			startTIme:    time.Now(),
+			durationTime: 0,
+			targets:      []*entity.Entity{monster.attackingTarget},
+		}
+		monster.castSKill = s4
 	}
-	if skill.castTime > 0 {
-		gwlog.Debugf("DisplayCastBar", skill)
-		monster.CallAllClients("DisplayCastBar", float32(skill.castTime.Seconds()), skill.skillType, skill.name, monster.ID)
+
+	if monster.castSKill != nil {
+		gwlog.Infof("castSkill is", monster.castSKill)
+		if monster.isCasting {
+			monster.castSKill.castTime -= time.Second
+		}
+		if !monster.isCasting {
+			monster.CallAllClients("DisplayCastBar", float32(monster.castSKill.castTime.Seconds()), monster.castSKill.skillType, monster.castSKill.name, monster.ID)
+		}
 		monster.isCasting = true
 		monster.Attrs.SetStr("action", "cast")
-		time.Sleep(skill.castTime)
-		monster.isCasting = false
-		monster.Attrs.SetStr("action", "idle")
+		if monster.castSKill.castTime <= 0 {
+			monster.castSkill(monster.castSKill)
+			if monster.castSKill.durationTime > 0 {
+				monster.castSKill.durationTime -= time.Second
+				gwlog.Infof("duration time", monster.castSKill.durationTime)
+			} else {
+				monster.isCasting = false
+				monster.castSKill = nil
+			}
+		}
 	}
-	if skill.delayTime > 0 {
-		time.Sleep(skill.delayTime)
-		monster.castSkill(skill)
-	} else {
-		monster.castSkill(skill)
-	}
-	// 持续性技能
-	if skill.durationTime > 0 {
-		monster.durationSkill(skill)
-	}
-}
 
-func (monster *Monster) durationSkill(skill *Skill) {
-	for skill.durationTime > 0 {
-		skill.durationTime -= 1
-		monster.castSkill(skill)
-	}
 }
 
 func (monster *Monster) castSkill(skill *Skill) {
-	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
-		err := recover() //recover是内置函数，可以捕获到异常
-		if err != nil {  //说明有错误
+	defer func() {
+		err := recover()
+		if err != nil {
 			gwlog.Errorf("cast skill error=", err)
-			//当然这里可以把错误的详细位置发送给开发人员
-			//send email to admin
 		}
 	}()
 
@@ -389,12 +383,10 @@ func (monster *Monster) castSkill(skill *Skill) {
 			gwlog.Infof("black hole pos, %f, %f", X, Z)
 			// monster.Space.CreateEntity("BlackHole", entity.Vector3{X: entity.Coord(X), Z: entity.Coord(Z)})
 			player := e.I.(*Player)
-			//player.TakeDamage(0)
-			//player.CallAllClients("DisplayAttacked", player.ID)
 			gwlog.Infof("monster yaw %f", monster.GetYaw())
 			gwlog.Infof("dis yaw %f ", (player.Position.Sub(monster.Position)).DirToYaw())
 			// 计算矩形
-			pointList := calcMatrix(monster.Position, (player.Position.Sub(monster.Position)).DirToYaw(), 2, 10)
+			pointList := utils.CalcMatrix(monster.Position, (player.Position.Sub(monster.Position)).DirToYaw(), 2, 10)
 
 			monster.CallAllClients("DisplayMatrix", pointList[0].X, pointList[0].Y, pointList[0].Z,
 				pointList[1].X, pointList[1].Y, pointList[1].Z,
@@ -404,7 +396,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 
 			for _, p := range players {
 				gwlog.Infof("position", p.Position)
-				if calcInMatrix(pointList, p.Position) {
+				if utils.CalcInMatrix(pointList, p.Position) {
 					p.TakeDamage(10)
 					p.CallAllClients("DisplayAttacked", p.ID)
 				}
@@ -442,127 +434,117 @@ func (monster *Monster) castSkill(skill *Skill) {
 				}
 			}
 		}
-	}
-}
-
-func (monster *Monster) lineDeathPenalty() {
-	if monster.IsDestroyed() {
-		return
-	}
-	monster.castingTarget = monster.attackingTarget
-	ticker := time.NewTicker(300 * time.Millisecond)
-	count := 0
-
-	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
-		monster.isCasting = false
-		ticker.Stop()
-		err := recover() //recover是内置函数，可以捕获到异常
-		if err != nil {  //说明有错误
-			gwlog.Errorf("line death penalty error=", err)
-			//当然这里可以把错误的详细位置发送给开发人员
-			//send email to admin
+	case LineDeathPenalty:
+		if monster.IsDestroyed() {
+			return
 		}
-	}()
+		if skill.targets == nil || len(skill.targets) <= 0 {
+			gwlog.Errorf("line death penalty failed, no targets", skill)
+			return
+		}
+		e := skill.targets[0]
+		monster.FaceTo(e)
+		oldDistance := monster.DistanceTo(e)
+		oldYaw := monster.GetYaw()
 
-	for {
-		select {
-		case <-ticker.C:
-			if monster.IsDestroyed() {
-				return
+		for e := range monster.InterestedIn {
+			if e.TypeName != "Player" {
+				continue
 			}
-			gwlog.Debugf("monster cast line", monster.castingTarget)
-			monster.isCasting = true
-			if monster.castingTarget != nil {
-				monster.FaceTo(monster.castingTarget)
+			yaw := e.Position.Sub(monster.Position).DirToYaw()
+			if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) <= oldDistance {
+				skill.targets = []*entity.Entity{e}
+				gwlog.Debugf("monster cast target %s", e.I.(*Player).Attrs.GetStr("name"))
 			}
-			oldDistance := monster.DistanceTo(monster.castingTarget)
-			oldYaw := monster.GetYaw()
-
-			for e := range monster.InterestedIn {
+		}
+		if skill.durationTime <= 0 && skill.targets != nil && len(skill.targets) > 0 {
+			gwlog.Debugf("monster cast line finished", skill.targets[0])
+			position := skill.targets[0].Position
+			for e := range monster.Space.Entities {
 				if e.TypeName != "Player" {
 					continue
 				}
-				yaw := e.Position.Sub(monster.Position).DirToYaw()
-				if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) <= oldDistance {
-					monster.castingTarget = e
-					gwlog.Debugf("monster cast target %s", monster.castingTarget.Attrs.GetStr("name"))
-				}
-			}
 
-			count += 1
-			if count >= 10 {
-				if monster.castingTarget != nil {
-					gwlog.Debugf("monster cast line finished", monster.castingTarget)
-					player := monster.castingTarget.I.(*Player)
-					player.TakeDamage(0)
-					player.CallAllClients("DisplayAttacked", player.ID)
-
-					for e := range monster.Space.Entities {
-						if e.TypeName != "Player" {
-							continue
-						}
-						if e.ID == player.ID {
-							continue
-						}
-						p := e.I.(*Player)
-						if p.Position.DistanceTo(player.Position) > 3 {
-							continue
-						}
-						p.TakeDamage(0)
-						p.CallAllClients("DisplayAttacked", p.ID)
-					}
+				p := e.I.(*Player)
+				if p.Position.DistanceTo(position) > 3 {
+					continue
 				}
-				return
+				p.TakeDamage(0)
+				p.CallAllClients("DisplayAttacked", p.ID)
 			}
+			return
 		}
 	}
-
 }
 
-func calcMatrix(vec entity.Vector3, yaw entity.Yaw, width float32, length float32) (pointList []entity.Vector3) {
-
-	// 角动量
-	yaw = yaw * math.Pi / 180
-	width /= 2
-	// 单位向量
-	unitVec := entity.Vector3{X: entity.Coord(math.Sin(float64(yaw))), Z: entity.Coord(math.Cos(float64(yaw)))}
-	// 顺时针90°
-	unitVecP90 := entity.Vector3{X: unitVec.Z, Z: -unitVec.X}
-	// 逆时针90°
-	// UnitVecM90 := entity.Vector3{X: -unitVec.Z, Z: unitVec.X}
-	l := entity.Vector3{X: unitVec.X * entity.Coord(length), Z: unitVec.Z * entity.Coord(length)}
-	w := entity.Vector3{X: unitVecP90.X * entity.Coord(width), Z: unitVecP90.Z * entity.Coord(width)}
-
-	pointList = append(pointList, vec.Add(l).Add(w))
-	pointList = append(pointList, vec.Add(w))
-	pointList = append(pointList, vec.Sub(w))
-	pointList = append(pointList, vec.Add(l).Sub(w))
-
-	fmt.Println(pointList)
-	gwlog.Infof("calcMatrix, vec %s, yaw %f, width %f, length %f, pointList %s", vec, yaw, width, length, pointList)
-	return pointList
-}
-
-func calcInMatrix(pointList []entity.Vector3, point entity.Vector3) bool {
-	vec1 := pointList[1].Sub(pointList[0]) // AB
-	vec2 := pointList[2].Sub(pointList[1]) // BC
-	vec3 := pointList[3].Sub(pointList[2]) // CD
-	vec4 := pointList[0].Sub(pointList[3]) // DA
-
-	pointVec1 := point.Sub(pointList[0]) // OA
-	pointVec2 := point.Sub(pointList[1]) // OB
-	pointVec3 := point.Sub(pointList[2]) // OC
-	pointVec4 := point.Sub(pointList[3]) // OD
-
-	result1 := math.Trunc(float64(vec1.VectorProduct(pointVec1)*100)) / 100
-	result2 := math.Trunc(float64(vec2.VectorProduct(pointVec2)*100)) / 100
-	result3 := math.Trunc(float64(vec3.VectorProduct(pointVec3)*100)) / 100
-	result4 := math.Trunc(float64(vec4.VectorProduct(pointVec4)*100)) / 100
-
-	if (result1 >= 0 && result2 >= 0 && result3 >= 0 && result4 >= 0) ||
-		(result1 <= 0 && result2 <= 0 && result3 <= 0 && result4 <= 0) {
-		return true
-	} else {
-		return false
-	}
-}
+//func (monster *Monster) lineDeathPenalty() {
+//	if monster.IsDestroyed() {
+//		return
+//	}
+//	monster.isCasting = true
+//	monster.castingTarget = monster.attackingTarget
+//	ticker := time.NewTicker(300 * time.Millisecond)
+//	count := 0
+//	defer func() {
+//		monster.isCasting = false
+//		ticker.Stop()
+//		err := recover()
+//		if err != nil {
+//			gwlog.Errorf("line death penalty error=", err)
+//		}
+//	}()
+//
+//	for {
+//		select {
+//		case <-ticker.C:
+//			if monster.IsDestroyed() {
+//				return
+//			}
+//			gwlog.Debugf("monster cast line", monster.castingTarget)
+//			if monster.castingTarget != nil {
+//				monster.FaceTo(monster.castingTarget)
+//				gwlog.Debugf("monster yaw", monster.GetYaw())
+//			}
+//			oldDistance := monster.DistanceTo(monster.castingTarget)
+//			oldYaw := monster.GetYaw()
+//
+//			for e := range monster.InterestedIn {
+//				if e.TypeName != "Player" {
+//					continue
+//				}
+//				yaw := e.Position.Sub(monster.Position).DirToYaw()
+//				if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) <= oldDistance {
+//					monster.castingTarget = e
+//					gwlog.Debugf("monster cast target %s", monster.castingTarget.Attrs.GetStr("name"))
+//				}
+//			}
+//
+//			count += 1
+//			if count >= 10 {
+//				if monster.castingTarget != nil {
+//					gwlog.Debugf("monster cast line finished", monster.castingTarget)
+//					player := monster.castingTarget.I.(*Player)
+//					player.TakeDamage(0)
+//					player.CallAllClients("DisplayAttacked", player.ID)
+//
+//					for e := range monster.Space.Entities {
+//						if e.TypeName != "Player" {
+//							continue
+//						}
+//						if e.ID == player.ID {
+//							continue
+//						}
+//						p := e.I.(*Player)
+//						if p.Position.DistanceTo(player.Position) > 3 {
+//							continue
+//						}
+//						p.TakeDamage(0)
+//						p.CallAllClients("DisplayAttacked", p.ID)
+//					}
+//				}
+//				return
+//			}
+//		}
+//	}
+//
+//}

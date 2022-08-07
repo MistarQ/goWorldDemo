@@ -53,9 +53,6 @@ func (a *Player) setDefaultAttrs() {
 	a.Attrs.SetDefaultInt("crit", 10)
 	a.Attrs.SetDefaultInt("critIndex", 2)
 	a.Attrs.SetBool("alive", true)
-	a.Position.X = 0
-	a.Position.Y = 0
-	a.Position.Z = -10
 	a.SetClientSyncing(true)
 }
 
@@ -111,7 +108,8 @@ func (a *Player) EnterSpace_Client(kind int) {
 // DoEnterSpace is called by SpaceService to notify avatar entering specified space
 func (a *Player) DoEnterSpace(kind int, spaceID common.EntityID) {
 	// let the avatar enter space with spaceID
-	a.EnterSpace(spaceID, entity.Vector3{})
+	gwlog.Infof("do enter space", spaceID)
+	a.EnterSpace(spaceID, entity.Vector3{Z: -10})
 }
 
 // OnEnterSpace is called when avatar enters a space
@@ -157,12 +155,10 @@ func (a *Player) CalcDmg(monster *Monster) (dmg int64, isCrit bool) {
 
 func (player *Player) TakeDamage(damage int64) {
 
-	defer func() { //defer就是把匿名函数压入到defer栈中，等到执行完毕后或者发生异常后调用匿名函数
-		err := recover() //recover是内置函数，可以捕获到异常
-		if err != nil {  //说明有错误
+	defer func() {
+		err := recover()
+		if err != nil {
 			gwlog.Errorf("take damage error=", err)
-			//当然这里可以把错误的详细位置发送给开发人员
-			//send email to admin
 		}
 	}()
 
@@ -187,15 +183,6 @@ func (player *Player) TakeDamage(damage int64) {
 	}
 
 }
-
-//func (a *Player) randomPosition() entity.Vector3 {
-//	minCoord, maxCoord := -400, 400
-//	return entity.Vector3{
-//		X: entity.Coord(minCoord + rand.Intn(maxCoord-minCoord)),
-//		Y: 0,
-//		Z: entity.Coord(minCoord + rand.Intn(maxCoord-minCoord)),
-//	}
-//}
 
 //func (a *Player) ShootMiss_Client() {
 //	a.Attrs.SetStr("action", "attack")

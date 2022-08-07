@@ -7,17 +7,19 @@ import (
 )
 
 const (
-	AOE             = 1
-	IRON            = 2
-	MOON            = 3
-	DeathPenaltyAOE = 4
-	LineBlackHole   = 5
-	Apportion       = 6
+	AOE              = 1 // 全屏aoe
+	IRON             = 2 // 钢铁 需远离
+	MOON             = 3 // 月环 需靠近
+	DeathPenaltyAOE  = 4 // aoe死刑
+	LineBlackHole    = 5 // 直线aoe 附带黑洞
+	Apportion        = 6 // 分摊
+	LineDeathPenalty = 7 // 接线死刑
 )
 
 type Skill struct {
 	name         string
 	power        int
+	caster       *entity.Entity
 	Position     goworld.Vector3
 	skillType    int32
 	castTime     time.Duration

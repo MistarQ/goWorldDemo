@@ -31,6 +31,7 @@ func (space *MySpace) OnSpaceCreated() {
 	space.AddTimer(time.Second, "EdgeDetection")
 	space.AddTimer(time.Second*5, "ResetScene")
 	space.SummonMonsters()
+	// space.AddTimer(time.Second*5, "SummonMonsters")
 
 }
 
@@ -45,6 +46,7 @@ func (space *MySpace) SummonMonsters() {
 	monster1.Attrs.SetStr("name", "Ser Grinnaux")
 	monster2 := space.CreateEntity("Monster", entity.Vector3{-5, 0, 5})
 	monster2.Attrs.SetStr("name", "Ser Adelphel")
+	gwlog.Infof("SummerMonsters", monster1.Position, monster2.Position, monster1.I.(*Monster).BattleStarted, monster2.I.(*Monster).BattleStarted)
 }
 
 func (space *MySpace) EdgeDetection() {
@@ -95,6 +97,7 @@ func (space *MySpace) OnEntityEnterSpace(entity *entity.Entity) {
 
 func (space *MySpace) onPlayerEnterSpace(entity *entity.Entity) {
 	gwlog.Debugf("Player %s enter space %s, total avatar count %d", entity, space, space.CountEntities("Player"))
+	gwlog.Debugf("player position", entity.Position)
 	space.clearDestroyCheckTimer()
 }
 
@@ -177,14 +180,4 @@ func isAllServicesReady() bool {
 
 func onAllServicesReady() {
 	gwlog.Infof("All services are ready!")
-}
-
-func (space *MySpace) AllPlayer() (players []*goworld.Entity) {
-
-	for e := range space.Entities {
-		if e.TypeName == "Player" {
-			players = append(players, e)
-		}
-	}
-	return players
 }
