@@ -56,6 +56,10 @@ func (a *Player) setDefaultAttrs() {
 	a.SetClientSyncing(true)
 }
 
+func (a *Player) getName() string {
+	return a.Attrs.GetStr("name")
+}
+
 func (a *Player) ResetAttr() {
 	a.Attrs.SetInt("spaceKind", 1)
 	a.Attrs.SetInt("lv", 1)

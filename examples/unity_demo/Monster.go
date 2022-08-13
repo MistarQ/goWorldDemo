@@ -63,6 +63,10 @@ func (monster *Monster) setDefaultAttrs() {
 	monster.lastAttackTime = time.Now()
 }
 
+func (monster *Monster) getName() string {
+	return monster.Attrs.GetStr("name")
+}
+
 func (monster *Monster) AI() {
 
 	var nearestPlayer *entity.Entity
