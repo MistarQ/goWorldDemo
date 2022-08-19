@@ -3,6 +3,9 @@ package main
 import (
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/action"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/eType"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/prop"
 	"github.com/xiaonanln/goworld/examples/unity_demo/utils"
 	"math"
 	"time"
@@ -34,16 +37,16 @@ type Monster struct {
 
 func (monster *Monster) DescribeEntityType(desc *entity.EntityTypeDesc) {
 	desc.SetUseAOI(true, 100)
-	desc.DefineAttr("name", "AllClients")
-	desc.DefineAttr("lv", "AllClients")
-	desc.DefineAttr("hp", "AllClients")
-	desc.DefineAttr("hpmax", "AllClients")
-	desc.DefineAttr("action", "AllClients")
-	desc.DefineAttr("radius", "AllClients")
+	desc.DefineAttr(prop.NAME, "AllClients")
+	desc.DefineAttr(prop.Level, "AllClients")
+	desc.DefineAttr(prop.Hp, "AllClients")
+	desc.DefineAttr(prop.HpMax, "AllClients")
+	desc.DefineAttr(prop.Action, "AllClients")
+	desc.DefineAttr(prop.Radius, "AllClients")
 }
 
 func (monster *Monster) OnCreated() {
-	monster.Attrs.SetDefaultInt("radius", 3)
+	monster.Attrs.SetDefaultInt(prop.Radius, 3)
 	monster.setDefaultAttrs()
 	gwlog.Infof("monster created", monster)
 }
@@ -53,18 +56,14 @@ func (monster *Monster) OnEnterSpace() {
 }
 
 func (monster *Monster) setDefaultAttrs() {
-	monster.Attrs.SetDefaultStr("name", "minion")
-	monster.Attrs.SetDefaultInt("lv", 1)
-	monster.Attrs.SetDefaultInt("hpmax", 100)
-	monster.Attrs.SetDefaultInt("hp", 100)
-	monster.Attrs.SetDefaultStr("action", "idle")
-	monster.Attrs.SetDefaultInt("radius", 3)
+	monster.Attrs.SetDefaultStr(prop.NAME, "default monster")
+	monster.Attrs.SetDefaultInt(prop.Level, 1)
+	monster.Attrs.SetDefaultInt(prop.Hp, 100)
+	monster.Attrs.SetDefaultInt(prop.HpMax, 100)
+	monster.Attrs.SetDefaultStr(prop.Action, action.Idle)
+	monster.Attrs.SetDefaultInt(prop.Radius, 3)
 	monster.attackCD = time.Second
 	monster.lastAttackTime = time.Now()
-}
-
-func (monster *Monster) getName() string {
-	return monster.Attrs.GetStr("name")
 }
 
 func (monster *Monster) AI() {
@@ -72,11 +71,11 @@ func (monster *Monster) AI() {
 	var nearestPlayer *entity.Entity
 	for entity := range monster.InterestedIn {
 
-		if entity.TypeName != "Player" {
+		if !eType.IsPlayer(entity.TypeName) {
 			continue
 		}
 
-		if entity.GetInt("hp") <= 0 {
+		if entity.GetInt(prop.Hp) <= 0 {
 			// dead
 			continue
 		}
@@ -86,7 +85,7 @@ func (monster *Monster) AI() {
 		}
 	}
 
-	if !monster.BattleStarted && nearestPlayer != nil && nearestPlayer.TypeName == "Player" && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
+	if !monster.BattleStarted && nearestPlayer != nil && eType.IsPlayer(nearestPlayer.TypeName) && nearestPlayer.DistanceTo(&monster.Entity) <= 8 {
 		gwlog.Infof("start battle ", monster.Position, nearestPlayer.Position)
 		monster.startBattle()
 	}
@@ -158,7 +157,7 @@ func (monster *Monster) Idling() {
 
 	monster.movingToTarget = nil
 	monster.attackingTarget = nil
-	monster.Attrs.SetStr("action", "idle")
+	monster.Attrs.SetStr(prop.Action, action.Idle)
 }
 
 func (monster *Monster) MovingTo(player *entity.Entity) {
@@ -169,7 +168,7 @@ func (monster *Monster) MovingTo(player *entity.Entity) {
 
 	monster.movingToTarget = player
 	monster.attackingTarget = nil
-	monster.Attrs.SetStr("action", "move")
+	monster.Attrs.SetStr(prop.Action, action.Move)
 }
 
 func (monster *Monster) Attacking(player *entity.Entity) {
@@ -179,13 +178,13 @@ func (monster *Monster) Attacking(player *entity.Entity) {
 
 	monster.movingToTarget = nil
 	monster.attackingTarget = player
-	monster.Attrs.SetStr("action", "move")
+	monster.Attrs.SetStr(prop.Action, action.Move)
 }
 
 func (monster *Monster) attack(player *Player) {
 	monster.CallAllClients("DisplayAttack", player.ID)
 
-	if player.GetInt("hp") <= 0 {
+	if player.GetInt(prop.Hp) <= 0 {
 		return
 	}
 
@@ -201,16 +200,16 @@ func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
 		monster.startBattle()
 	}
 
-	hp := monster.GetInt("hp")
+	hp := monster.GetInt(prop.Hp)
 	hp = hp - damage
 	if hp < 0 {
 		hp = 0
 	}
 
-	monster.Attrs.SetInt("hp", hp)
-	gwlog.Infof("%s TakeDamage %d => hp=%d", monster, damage, hp)
+	monster.Attrs.SetInt(prop.Hp, hp)
+	gwlog.Infof("%s TakeDamage %d => Hp=%d", monster, damage, hp)
 	if hp <= 0 {
-		monster.Attrs.SetStr("action", "death")
+		monster.Attrs.SetStr(prop.Action, action.Death)
 		monster.Destroy()
 	}
 	monster.CallAllClients("DisplayAttacked", monster.ID, isCrit)
@@ -298,7 +297,7 @@ func (monster *Monster) SkillTimeline() {
 			monster.CallAllClients("DisplayCastBar", float32(monster.castSKill.castTime.Seconds()), monster.castSKill.skillType, monster.castSKill.name, monster.ID)
 		}
 		monster.isCasting = true
-		monster.Attrs.SetStr("action", "cast")
+		monster.Attrs.SetStr(prop.Action, action.Cast)
 		if monster.castSKill.castTime <= 0 {
 			monster.castSkill(monster.castSKill)
 			if monster.castSKill.durationTime > 0 {
@@ -328,7 +327,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 
 	var players []*Player
 	for p, _ := range space.Entities {
-		if p.TypeName == "Player" {
+		if eType.IsPlayer(p.TypeName) {
 			player := p.I.(*Player)
 			players = append(players, player)
 		}
@@ -360,7 +359,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 			target.TakeDamage(0)
 			target.CallAllClients("DisplayAttacked", target.ID)
 			for _, p := range players {
-				if p.TypeName != "Player" {
+				if eType.IsPlayer(p.TypeName) {
 					continue
 				}
 				player := p.I.(*Player)
@@ -413,12 +412,12 @@ func (monster *Monster) castSkill(skill *Skill) {
 		for _, e := range skill.targets {
 			var playerList []*Player
 
-			if e.TypeName != "Player" {
+			if !eType.IsPlayer(e.TypeName) {
 				continue
 			}
 			playerList = append(playerList, e.I.(*Player))
 			for otherE := range monster.Space.Entities {
-				if otherE.TypeName != "Player" {
+				if !eType.IsPlayer(otherE.TypeName) {
 					continue
 				}
 				if otherE.ID == e.ID {
@@ -452,20 +451,20 @@ func (monster *Monster) castSkill(skill *Skill) {
 		oldYaw := monster.GetYaw()
 
 		for e := range monster.InterestedIn {
-			if e.TypeName != "Player" {
+			if !eType.IsPlayer(e.TypeName) {
 				continue
 			}
 			yaw := e.Position.Sub(monster.Position).DirToYaw()
 			if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) <= oldDistance {
 				skill.targets = []*entity.Entity{e}
-				gwlog.Debugf("monster cast target %s", e.I.(*Player).Attrs.GetStr("name"))
+				gwlog.Debugf("monster cast target %s", e.I.(*Player).Attrs.GetStr(prop.NAME))
 			}
 		}
 		if skill.durationTime <= 0 && skill.targets != nil && len(skill.targets) > 0 {
 			gwlog.Debugf("monster cast line finished", skill.targets[0])
 			position := skill.targets[0].Position
 			for e := range monster.Space.Entities {
-				if e.TypeName != "Player" {
+				if !eType.IsPlayer(e.TypeName) {
 					continue
 				}
 
@@ -480,75 +479,3 @@ func (monster *Monster) castSkill(skill *Skill) {
 		}
 	}
 }
-
-//func (monster *Monster) lineDeathPenalty() {
-//	if monster.IsDestroyed() {
-//		return
-//	}
-//	monster.isCasting = true
-//	monster.castingTarget = monster.attackingTarget
-//	ticker := time.NewTicker(300 * time.Millisecond)
-//	count := 0
-//	defer func() {
-//		monster.isCasting = false
-//		ticker.Stop()
-//		err := recover()
-//		if err != nil {
-//			gwlog.Errorf("line death penalty error=", err)
-//		}
-//	}()
-//
-//	for {
-//		select {
-//		case <-ticker.C:
-//			if monster.IsDestroyed() {
-//				return
-//			}
-//			gwlog.Debugf("monster cast line", monster.castingTarget)
-//			if monster.castingTarget != nil {
-//				monster.FaceTo(monster.castingTarget)
-//				gwlog.Debugf("monster yaw", monster.GetYaw())
-//			}
-//			oldDistance := monster.DistanceTo(monster.castingTarget)
-//			oldYaw := monster.GetYaw()
-//
-//			for e := range monster.InterestedIn {
-//				if e.TypeName != "Player" {
-//					continue
-//				}
-//				yaw := e.Position.Sub(monster.Position).DirToYaw()
-//				if math.Abs(float64(yaw-oldYaw)) <= 10 && e.Position.DistanceTo(monster.Position) <= oldDistance {
-//					monster.castingTarget = e
-//					gwlog.Debugf("monster cast target %s", monster.castingTarget.Attrs.GetStr("name"))
-//				}
-//			}
-//
-//			count += 1
-//			if count >= 10 {
-//				if monster.castingTarget != nil {
-//					gwlog.Debugf("monster cast line finished", monster.castingTarget)
-//					player := monster.castingTarget.I.(*Player)
-//					player.TakeDamage(0)
-//					player.CallAllClients("DisplayAttacked", player.ID)
-//
-//					for e := range monster.Space.Entities {
-//						if e.TypeName != "Player" {
-//							continue
-//						}
-//						if e.ID == player.ID {
-//							continue
-//						}
-//						p := e.I.(*Player)
-//						if p.Position.DistanceTo(player.Position) > 3 {
-//							continue
-//						}
-//						p.TakeDamage(0)
-//						p.CallAllClients("DisplayAttacked", p.ID)
-//					}
-//				}
-//				return
-//			}
-//		}
-//	}
-//
-//}

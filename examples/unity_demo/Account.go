@@ -5,6 +5,8 @@ import (
 	"github.com/xiaonanln/goworld/engine/common"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/eType"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/prop"
 )
 
 // Account 是账号对象类型，用于处理注册、登录逻辑
@@ -28,8 +30,8 @@ func (a *Account) Register_Client(username string, password string) {
 
 		if oldVal == "" {
 
-			player := goworld.CreateEntityLocally("Player") // 创建一个Player对象然后立刻销毁，产生一次存盘
-			player.Attrs.SetStr("name", username)
+			player := goworld.CreateEntityLocally(eType.Player) // 创建一个Player对象然后立刻销毁，产生一次存盘
+			player.Attrs.SetStr(prop.NAME, username)
 			player.Destroy()
 
 			goworld.PutKVDB("playerID$"+username, string(player.ID), func(err error) {
@@ -79,7 +81,7 @@ func (a *Account) Login_Client(username string, password string) {
 			}
 			a.name = username
 			playerID := common.EntityID(_playerID)
-			goworld.LoadEntityAnywhere("Player", playerID)
+			goworld.LoadEntityAnywhere(eType.Player, playerID)
 			a.Call(playerID, "GetSpaceID", a.ID)
 		})
 	})
@@ -101,7 +103,7 @@ func (a *Account) OnGetPlayerSpaceID(playerID common.EntityID, spaceID common.En
 func (a *Account) onPlayerEntityFound(player *entity.Entity) {
 	gwlog.Infof("Player %s is found, giving client to ...", player)
 	a.logIn = false
-	player.Attrs.SetStr("name", a.name)
+	player.Attrs.SetStr(prop.NAME, a.name)
 	player.Position = goworld.Vector3{0, 0, -10}
 	a.GiveClientTo(player) // 将Account的客户端移交给Player
 }

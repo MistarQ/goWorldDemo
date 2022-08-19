@@ -5,6 +5,8 @@ import (
 	"github.com/xiaonanln/goworld"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/eType"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/prop"
 	"strconv"
 	"time"
 )
@@ -42,16 +44,16 @@ func (space *MySpace) DumpEntityStatus() {
 }
 
 func (space *MySpace) SummonMonsters() {
-	monster1 := space.CreateEntity("Monster", entity.Vector3{5, 0, 5})
-	monster1.Attrs.SetStr("name", "Ser Grinnaux")
+	monster1 := space.CreateEntity(eType.Monster, entity.Vector3{5, 0, 5})
+	monster1.Attrs.SetStr(prop.NAME, "Ser Grinnaux")
 	monster2 := space.CreateEntity("Monster", entity.Vector3{-5, 0, 5})
-	monster2.Attrs.SetStr("name", "Ser Adelphel")
+	monster2.Attrs.SetStr(prop.NAME, "Ser Adelphel")
 	gwlog.Infof("SummerMonsters", monster1.Position, monster2.Position, monster1.I.(*Monster).BattleStarted, monster2.I.(*Monster).BattleStarted)
 }
 
 func (space *MySpace) EdgeDetection() {
 	for e := range space.Entities {
-		if e.TypeName == "Player" {
+		if eType.IsPlayer(e.TypeName) {
 
 			if (e.Position.X > 20) ||
 				e.Position.X < -20 ||
@@ -66,22 +68,22 @@ func (space *MySpace) EdgeDetection() {
 
 func (space *MySpace) ResetScene() {
 	for e := range space.Entities {
-		if e.TypeName == "Player" {
-			if e.I.(*Player).Attrs.GetBool("alive") {
+		if eType.IsPlayer(e.TypeName) {
+			if e.I.(*Player).Attrs.GetBool(prop.Alive) {
 				return
 			}
 		}
 	}
 
 	for e := range space.Entities {
-		if e.TypeName == "Player" {
+		if eType.IsPlayer(e.TypeName) {
 			p := e.I.(*Player)
 			p.ResetAttr()
 			p.CallAllClients("ResetCoord", p.Position.X, p.Position.Y, p.Position.Z)
 		}
 	}
 	for e := range space.Entities {
-		if e.TypeName == "Monster" {
+		if eType.IsMonster(e.TypeName) {
 			e.I.(*Monster).Destroy()
 		}
 	}
@@ -90,7 +92,7 @@ func (space *MySpace) ResetScene() {
 
 // OnEntityEnterSpace is called when entity enters space
 func (space *MySpace) OnEntityEnterSpace(entity *entity.Entity) {
-	if entity.TypeName == "Player" {
+	if eType.IsPlayer(entity.TypeName) {
 		space.onPlayerEnterSpace(entity)
 	}
 }
@@ -103,7 +105,7 @@ func (space *MySpace) onPlayerEnterSpace(entity *entity.Entity) {
 
 // OnEntityLeaveSpace is called when entity leaves space
 func (space *MySpace) OnEntityLeaveSpace(entity *entity.Entity) {
-	if entity.TypeName == "Player" {
+	if eType.IsPlayer(entity.TypeName) {
 		space.onPlayerLeaveSpace(entity)
 	}
 }

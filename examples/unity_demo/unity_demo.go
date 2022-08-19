@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/xiaonanln/goworld"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/properties/eType"
 )
 
 var (
@@ -26,13 +27,13 @@ func main() {
 	goworld.RegisterService("SpaceService", &SpaceService{}, 3)
 
 	// account
-	goworld.RegisterEntity("Account", &Account{})
+	goworld.RegisterEntity(eType.Account, &Account{})
 	// player
-	goworld.RegisterEntity("Player", &Player{})
+	goworld.RegisterEntity(eType.Player, &Player{})
 	// monster
-	goworld.RegisterEntity("Monster", &Monster{})
+	goworld.RegisterEntity(eType.Monster, &Monster{})
 	// black hole
-	goworld.RegisterEntity("BlackHole", &BlackHole{})
+	goworld.RegisterEntity(eType.BlackHole, &BlackHole{})
 
 	// 运行游戏服务器
 	goworld.Run()
