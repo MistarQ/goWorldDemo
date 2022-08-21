@@ -44,7 +44,9 @@ func (space *MySpace) DumpEntityStatus() {
 func (space *MySpace) SummonMonsters() {
 	monster1 := space.CreateEntity("Monster", entity.Vector3{5, 0, 5})
 	monster1.Attrs.SetStr("name", "Ser Grinnaux")
+	monster1.SetYaw(180)
 	monster2 := space.CreateEntity("Monster", entity.Vector3{-5, 0, 5})
+	monster2.SetYaw(180)
 	monster2.Attrs.SetStr("name", "Ser Adelphel")
 	gwlog.Infof("SummerMonsters", monster1.Position, monster2.Position, monster1.I.(*Monster).BattleStarted, monster2.I.(*Monster).BattleStarted)
 }

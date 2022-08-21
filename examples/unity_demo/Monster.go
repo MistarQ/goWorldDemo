@@ -232,7 +232,7 @@ func (monster *Monster) SkillTimeline() {
 	gwlog.Infof("SkillTimeline, tick is", monster.tick, monster.Position)
 
 	switch monster.tick {
-	case 20:
+	case 5:
 		s0 := &Skill{
 			name:         "Hollest of Holy",
 			Position:     monster.Position,
@@ -242,7 +242,7 @@ func (monster *Monster) SkillTimeline() {
 			startTIme:    time.Now(),
 			durationTime: 0}
 		monster.castSKill = s0
-	case 30:
+	case 10:
 		s1 := &Skill{
 			name:         "Empty dimension",
 			Position:     monster.Position,
@@ -253,7 +253,7 @@ func (monster *Monster) SkillTimeline() {
 			durationTime: 0,
 			radius:       3}
 		monster.castSKill = s1
-	case 40:
+	case 20:
 		s2 := &Skill{
 			name:      "Heaven Blaze",
 			skillType: Apportion,
@@ -263,7 +263,7 @@ func (monster *Monster) SkillTimeline() {
 			power:     0,
 			targets:   []*entity.Entity{monster.attackingTarget}}
 		monster.castSKill = s2
-	case 5:
+	case 30:
 		s3 := &Skill{
 			name:         "接线",
 			skillType:    LineDeathPenalty,
@@ -275,7 +275,7 @@ func (monster *Monster) SkillTimeline() {
 			targets:      []*entity.Entity{monster.attackingTarget},
 		}
 		monster.castSKill = s3
-	case 50:
+	case 40:
 		s4 := &Skill{
 			name:         "Hyper Dimensional Slash",
 			Position:     monster.Position,
