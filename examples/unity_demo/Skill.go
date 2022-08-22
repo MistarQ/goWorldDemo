@@ -18,7 +18,7 @@ const (
 
 type Skill struct {
 	name         string
-	power        int
+	power        int64
 	caster       *entity.Entity
 	Position     goworld.Vector3
 	skillType    int32
@@ -28,4 +28,19 @@ type Skill struct {
 	durationTime time.Duration
 	targets      []*entity.Entity
 	radius       entity.Coord
+}
+
+const (
+	CAST     = 1 // 施法
+	ULTIMATE = 2 // 大招
+)
+
+func CalcDmgFactor(skillType int) int64 {
+	switch skillType {
+	case CAST:
+		return 1
+	case ULTIMATE:
+		return 5
+	}
+	return 0
 }

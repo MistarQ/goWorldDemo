@@ -58,8 +58,8 @@ func (monster *Monster) OnEnterSpace() {
 func (monster *Monster) setDefaultAttrs() {
 	monster.Attrs.SetDefaultStr(prop.NAME, "default monster")
 	monster.Attrs.SetDefaultInt(prop.Level, 1)
-	monster.Attrs.SetDefaultInt(prop.Hp, 100)
-	monster.Attrs.SetDefaultInt(prop.HpMax, 100)
+	monster.Attrs.SetDefaultInt(prop.Hp, 1000)
+	monster.Attrs.SetDefaultInt(prop.HpMax, 1000)
 	monster.Attrs.SetDefaultStr(prop.Action, action.Idle)
 	monster.Attrs.SetDefaultInt(prop.Radius, 3)
 	monster.attackCD = time.Second
@@ -192,7 +192,7 @@ func (monster *Monster) attack(player *Player) {
 }
 
 func (monster *Monster) GetDamage() int64 {
-	return 0
+	return 1
 }
 
 func (monster *Monster) TakeDamage(damage int64, isCrit bool) {
@@ -238,6 +238,7 @@ func (monster *Monster) SkillTimeline() {
 			skillType:    AOE,
 			castTime:     3 * time.Second,
 			delayTime:    0,
+			power:        10,
 			startTIme:    time.Now(),
 			durationTime: 0}
 		monster.castSKill = s0
@@ -248,6 +249,7 @@ func (monster *Monster) SkillTimeline() {
 			skillType:    MOON,
 			castTime:     3 * time.Second,
 			delayTime:    0,
+			power:        30,
 			startTIme:    time.Now(),
 			durationTime: 0,
 			radius:       3}
@@ -259,7 +261,7 @@ func (monster *Monster) SkillTimeline() {
 			castTime:  3 * time.Second,
 			startTIme: time.Now(),
 			radius:    3,
-			power:     0,
+			power:     20,
 			targets:   []*entity.Entity{monster.attackingTarget}}
 		monster.castSKill = s2
 	case 5:
@@ -270,7 +272,7 @@ func (monster *Monster) SkillTimeline() {
 			caster:       &monster.Entity,
 			startTIme:    time.Now(),
 			durationTime: 3 * time.Second,
-			power:        1,
+			power:        15,
 			targets:      []*entity.Entity{monster.attackingTarget},
 		}
 		monster.castSKill = s3
@@ -282,6 +284,7 @@ func (monster *Monster) SkillTimeline() {
 			castTime:     3 * time.Second,
 			delayTime:    0,
 			startTIme:    time.Now(),
+			power:        25,
 			durationTime: 0,
 			targets:      []*entity.Entity{monster.attackingTarget},
 		}
@@ -336,7 +339,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 	switch skill.skillType {
 	case AOE:
 		for _, p := range players {
-			p.TakeDamage(0)
+			p.TakeDamage(skill.power)
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	case MOON:
@@ -346,7 +349,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 			if p.Position.DistanceTo2D(skill.Position) < skill.radius {
 				continue
 			}
-			p.TakeDamage(0)
+			p.TakeDamage(skill.power)
 			p.CallAllClients("DisplayAttacked", p.ID)
 		}
 	case DeathPenaltyAOE:
@@ -356,7 +359,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 
 		for _, e := range skill.targets {
 			target := e.I.(*Player)
-			target.TakeDamage(0)
+			target.TakeDamage(skill.power)
 			target.CallAllClients("DisplayAttacked", target.ID)
 			for _, p := range players {
 				if eType.IsPlayer(p.TypeName) {
@@ -366,7 +369,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 				if player.Position.DistanceTo2D(target.Position) > skill.radius {
 					continue
 				}
-				player.TakeDamage(0)
+				player.TakeDamage(skill.power)
 				player.CallAllClients("DisplayAttacked", player.ID)
 			}
 		}
@@ -400,7 +403,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 			for _, p := range players {
 				gwlog.Infof("position", p.Position)
 				if utils.CalcInMatrix(pointList, p.Position) {
-					p.TakeDamage(10)
+					p.TakeDamage(skill.power)
 					p.CallAllClients("DisplayAttacked", p.ID)
 				}
 			}
@@ -430,9 +433,9 @@ func (monster *Monster) castSkill(skill *Skill) {
 				playerList = append(playerList, otherP)
 			}
 			if playerList != nil {
-				skill.power /= len(playerList)
+				skill.power /= int64(len(playerList))
 				for _, p := range playerList {
-					p.TakeDamage(int64(skill.power))
+					p.TakeDamage(skill.power)
 					p.CallAllClients("DisplayAttacked", p.ID)
 				}
 			}
@@ -472,7 +475,7 @@ func (monster *Monster) castSkill(skill *Skill) {
 				if p.Position.DistanceTo(position) > 3 {
 					continue
 				}
-				p.TakeDamage(0)
+				p.TakeDamage(skill.power)
 				p.CallAllClients("DisplayAttacked", p.ID)
 			}
 			return

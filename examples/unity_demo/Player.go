@@ -138,7 +138,7 @@ func (player *Player) Cast_Client(victimID common.EntityID) {
 	}
 
 	monster := victim.I.(*Monster)
-	dmg, isCrit := player.CalcDmg(monster)
+	dmg, isCrit := player.CalcDmg(monster, CAST)
 	monster.TakeDamage(dmg, isCrit)
 }
 
@@ -163,7 +163,7 @@ func (player *Player) Ultimate_Client(victimID common.EntityID) {
 		return
 	}
 	monster := victim.I.(*Monster)
-	dmg, isCrit := player.CalcDmg(monster)
+	dmg, isCrit := player.CalcDmg(monster, ULTIMATE)
 	monster.TakeDamage(dmg, isCrit)
 }
 
@@ -175,13 +175,14 @@ func (player *Player) GetUltimate_Client(playerID common.EntityID) {
 	player.Attrs.SetInt(prop.UltimatePoint, ultimatePoint+1)
 }
 
-func (player *Player) CalcDmg(monster *Monster) (dmg int64, isCrit bool) {
-	// TODO 区分技能类型
+func (player *Player) CalcDmg(monster *Monster, skillType int) (dmg int64, isCrit bool) {
 	r := player.Intn(100) + 1
 	dmg = player.Attrs.GetInt(prop.Atk)
 
+	dmg *= CalcDmgFactor(skillType)
+
 	if int64(r) > player.Attrs.GetInt(prop.Crit) {
-		dmg *= 2
+		dmg *= player.Attrs.GetInt(prop.CritIndex)
 		isCrit = true
 	}
 	return dmg, isCrit
