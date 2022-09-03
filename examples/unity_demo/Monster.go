@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/astar"
 	"github.com/xiaonanln/goworld/examples/unity_demo/properties/action"
 	"github.com/xiaonanln/goworld/examples/unity_demo/properties/eType"
 	"github.com/xiaonanln/goworld/examples/unity_demo/properties/prop"
@@ -131,11 +132,22 @@ func (monster *Monster) Tick() {
 
 	if monster.movingToTarget != nil && monster.IsInterestedIn(monster.movingToTarget) {
 		mypos := monster.GetPosition()
-		direction := monster.movingToTarget.GetPosition().Sub(mypos)
+		direction := monster.movingToTarget.GetPosition()
 		direction.Y = 0
 
-		t := direction.Normalized().Mul(monster.GetSpeed() * 30 / 1000.0)
-		monster.SetPosition(mypos.Add(t))
+		from := monster.Space.I.(*MySpace).TheWorld.Tile(int(mypos.X*10), int(mypos.Z*10))
+		to := monster.Space.I.(*MySpace).TheWorld.Tile(int(direction.X*10), int(direction.Z*10))
+
+		p, distance, found := astar.Path(from, to)
+		gwlog.Infof("from %s %s, to %s %s, distance %s, found %s", from.X, from.Y, to.X, to.Y, distance, found)
+		if found && distance >= 1 {
+			pos := p[1].(*astar.Tile)
+			mypos.X = entity.Coord(float32(pos.X) / 10)
+			mypos.Z = entity.Coord(float32(pos.Y) / 10)
+			monster.SetPosition(mypos)
+			gwlog.Infof("new pos X:%s Z:%s", mypos.X, mypos.Z)
+		}
+
 		monster.FaceTo(monster.movingToTarget)
 		return
 	}
@@ -219,7 +231,7 @@ func (monster *Monster) startBattle() {
 
 	monster.BattleStarted = true
 	monster.lastTickTime = time.Now()
-	monster.AddTimer(time.Millisecond*30, "Tick")
+	monster.AddTimer(time.Millisecond*100, "Tick")
 	// 计算技能
 	monster.AddTimer(time.Second, "SkillTimeline")
 }

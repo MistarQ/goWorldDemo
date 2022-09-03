@@ -58,6 +58,8 @@ var KindCosts = map[int]float64{
 	KindMountain: 3.0,
 }
 
+var TheWorld World
+
 // A Tile is a tile in a grid which implements Pather.
 type Tile struct {
 	// Kind is the kind of tile, potentially affecting movement.

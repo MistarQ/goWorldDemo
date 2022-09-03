@@ -1,6 +1,8 @@
 package astar
 
-import "container/heap"
+import (
+	"container/heap"
+)
 
 // astar is an A* pathfinding implementation.
 
@@ -69,6 +71,11 @@ func Path(from, to Pather) (path []Pather, distance float64, found bool) {
 			for curr != nil {
 				p = append(p, curr.pather)
 				curr = curr.parent
+			}
+			if len(p) > 1 {
+				for i, j := 0, len(p)-1; i < j; i, j = i+1, j-1 {
+					p[i], p[j] = p[j], p[i]
+				}
 			}
 			return p, current.cost, true
 		}

@@ -4,7 +4,9 @@ package astar
 // implementation.  testPath is used to check the calculated path distance is
 // what we're expecting.
 
-import "testing"
+import (
+	"testing"
+)
 
 // testPath takes a string encoded world, decodes it, calculates a path and
 // checks the expected distance matches.  An expectedDist of -1 expects that no

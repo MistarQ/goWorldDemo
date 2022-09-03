@@ -5,6 +5,7 @@ import (
 	"github.com/xiaonanln/goworld"
 	"github.com/xiaonanln/goworld/engine/entity"
 	"github.com/xiaonanln/goworld/engine/gwlog"
+	"github.com/xiaonanln/goworld/examples/unity_demo/astar"
 	"github.com/xiaonanln/goworld/examples/unity_demo/properties/eType"
 	"github.com/xiaonanln/goworld/examples/unity_demo/properties/prop"
 	"strconv"
@@ -20,10 +21,12 @@ type MySpace struct {
 	goworld.Space // Space type should always inherit from entity.Space
 
 	destroyCheckTimer entity.EntityTimerID
+	TheWorld          astar.World
 }
 
 // OnSpaceCreated is called when the space is created
 func (space *MySpace) OnSpaceCreated() {
+
 	// notify the SpaceService that it's ok
 	space.EnableAOI(100)
 
@@ -34,6 +37,18 @@ func (space *MySpace) OnSpaceCreated() {
 	space.AddTimer(time.Second*5, "ResetScene")
 	space.SummonMonsters()
 	// space.AddTimer(time.Second*5, "SummonMonsters")
+	space.TheWorld = astar.World{}
+	for i := -1000; i < 1000; i++ {
+		for j := -1000; j < 1000; j++ {
+
+			//if i == 0 && j < 100 && j > -100 {
+			//	space.TheWorld.SetTile(&astar.Tile{Kind: astar.KindBlocker}, i, j)
+			//} else {
+			//	space.TheWorld.SetTile(&astar.Tile{Kind: astar.KindPlain}, i, j)
+			//}
+			space.TheWorld.SetTile(&astar.Tile{Kind: astar.KindPlain}, i, j)
+		}
+	}
 
 }
 
